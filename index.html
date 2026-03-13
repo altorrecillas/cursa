@@ -1,0 +1,2166 @@
+ <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cursa de Mossos 5k 🏃</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;0,900;1,800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            background: linear-gradient(to bottom, #A8C8E8, #3a3a3a); 
+            font-family: 'Montserrat', system-ui, -apple-system, sans-serif; 
+            height: 100vh;
+            touch-action: none;
+            user-select: none;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas { 
+            max-width: 100vw;
+            max-height: 100vh;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #A8C8E8;
+        }
+        #ui { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: white; 
+            font-size: clamp(16px, 3vw, 22px); 
+            text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000; 
+            z-index: 10; 
+            pointer-events: none;
+            text-transform: uppercase;
+        }
+        #title { font-weight: 900; font-size: 1.4em; color: #FFD700; margin-bottom: 5px; letter-spacing: 1px;}
+        .ui-stat { margin-bottom: 4px; font-weight: 700;}
+        .ui-hints { font-size: 0.65em; opacity: 0.9; margin-top: 8px; font-weight: 700; color: #E0E0E0;}
+
+        #gameOver { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            color: white; 
+            font-size: clamp(28px, 6vw, 42px); 
+            text-align: center; 
+            text-shadow: 3px 3px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000; 
+            display: none; 
+            z-index: 10; 
+            max-width: 90%;
+            font-weight: 900;
+            text-transform: uppercase;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        #gameOver span { color: #FFD700; font-size: 1.2em; display: block; margin-top: 10px;}
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        #characterSelect {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background-size: 300% 300%;
+    animation: bgShimmer 8s ease infinite;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: clamp(6px,1vh,12px) 14px clamp(4px,0.8vh,8px);
+    color: white;
+    z-index: 9999;
+    touch-action: auto;
+    overflow: hidden;
+}
+        #characterSelect h1 {
+    font-size: clamp(20px,5.5vw,42px);
+    font-weight: 900;
+    color: #FFD700;
+    margin-bottom: 2px;
+    letter-spacing: 1px;
+    text-align: center;
+    line-height: 1.0;
+    text-transform: uppercase;
+    animation: titlePulse 3s ease-in-out infinite;
+}
+        #characterSelect .subtitle {
+    font-size: clamp(12px,2.8vw,18px);
+    font-weight: 700;
+    opacity: 0.95;
+    margin-bottom: clamp(12px,2.5vh,24px);
+    color: #C8DAEA;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: subtitleFloat 4s ease-in-out infinite;
+}
+        .playerCards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: clamp(12px,3vw,22px);
+    width: 100%;
+    max-width: 400px;
+    padding: 0;
+    margin-bottom: clamp(8px,2vh,16px);
+}
+        .playerCard {
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: clamp(12px,2.5vw,20px) clamp(6px,1.4vw,12px);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    -webkit-tap-highlight-color: transparent;
+}
+        .playerCard:hover, .playerCard:active {
+            background: rgba(255,215,0,0.22);
+            border-color: #FFD700;
+            transform: translateY(-6px) scale(1.05);
+            box-shadow: 0 16px 40px rgba(255,215,0,0.35);
+        }
+        .playerCard .card-icon {
+    font-size: clamp(32px,8vw,56px);
+    display: block;
+    margin-bottom: 8px;
+    filter: drop-shadow(0px 3px 4px rgba(0,0,0,0.5));
+}
+        .playerCard h2 {
+    font-size: clamp(14px,3.5vw,22px);
+    color: #FFD700;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    letter-spacing: 1px;
+}
+        .playerCard .card-desc {
+    font-size: clamp(10px,2.2vw,14px);
+    font-weight: 700;
+    color: #C8DAEA;
+    opacity: 0.95;
+    line-height: 1.4;
+}
+
+        /* Animations from original */
+        @keyframes titlePulse {
+            0%, 100% { text-shadow: 0 0 20px rgba(255,215,0,0.8), 0 0 40px rgba(255,215,0,0.3); letter-spacing: 2px; }
+            50%       { text-shadow: 0 0 35px rgba(255,215,0,1),   0 0 70px rgba(255,215,0,0.6); letter-spacing: 4px; }
+        }
+        #characterSelect h1 { animation: titlePulse 3s ease-in-out infinite; }
+
+        @keyframes subtitleFloat {
+            0%, 100% { transform: translateY(0px); opacity: 0.8; }
+            50%      { transform: translateY(-4px); opacity: 1;   }
+        }
+        #characterSelect .subtitle { animation: subtitleFloat 4s ease-in-out infinite; }
+
+        @keyframes cardEntrance {
+            from { opacity: 0; transform: translateY(30px) scale(0.9); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        #card-camilo { animation: cardEntrance 0.5s ease 0.1s both; }
+        #card-rafa   { animation: cardEntrance 0.5s ease 0.25s both; }
+        #card-alba   { animation: cardEntrance 0.5s ease 0.4s both; }
+        #card-therian { animation: cardEntrance 0.5s ease 0.55s both; }
+
+        @keyframes iconBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            40%      { transform: translateY(-8px) scale(1.15); }
+            70%      { transform: translateY(-3px) scale(1.05); }
+        }
+        #card-camilo .card-icon { animation: iconBounce 2.4s ease-in-out infinite; }
+        #card-rafa   .card-icon { animation: iconBounce 2.4s ease-in-out 0.8s infinite; }
+        #card-alba   .card-icon { animation: iconBounce 2.4s ease-in-out 1.6s infinite; }
+        #card-therian .card-icon { animation: iconBounce 2.4s ease-in-out 2.4s infinite; }
+
+        @keyframes bgShimmer {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        #characterSelect {
+            background-size: 300% 300%;
+            animation: bgShimmer 8s ease infinite;
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.15; transform: scale(1); }
+            50%      { opacity: 0.9;  transform: scale(1.4); }
+        }
+        .star-field {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: white;
+            animation: starTwinkle var(--dur, 2s) ease-in-out var(--delay, 0s) infinite;
+        }
+        #characterSelect h1, #characterSelect .subtitle, #characterSelect .playerCards { position: relative; z-index: 1; }
+
+        /* ===== PANTALLA INSTRUCCIONES ===== */
+        #instrScreen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 29999;
+            touch-action: auto;
+            padding: clamp(16px, 4vw, 48px);
+            cursor: pointer;
+        }
+        #instrScreen.visible { display: flex; }
+        #instrScreen h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(22px, 5vw, 38px);
+            font-weight: 900;
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: clamp(14px, 3vh, 24px);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 24px rgba(255,215,0,0.9);
+        }
+        .instr-rule {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,215,0,0.25);
+            border-radius: 14px;
+            padding: 11px 16px;
+            max-width: 500px;
+            width: 100%;
+        }
+        .instr-icon { font-size: 1.7em; flex-shrink: 0; line-height: 1.1; }
+        .instr-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(11px, 2.2vw, 14px);
+            font-weight: 700;
+            line-height: 1.5;
+            color: #D0D8FF;
+        }
+        .instr-text strong { color: #FFD700; }
+        #instrTap {
+            margin-top: clamp(14px, 3vh, 22px);
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(11px, 2vw, 14px);
+            font-weight: 700;
+            color: rgba(255,255,255,0.45);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: tapBlink 1.4s ease-in-out infinite;
+        }
+        @keyframes tapBlink {
+            0%,100% { opacity: 0.4; } 50% { opacity: 1; }
+        }
+        /* Botón instrucciones */
+        #instrBtn {
+    margin-top: clamp(4px,1vh,10px);
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,215,0,0.6);
+    border-radius: 50px;
+    color: #FFD700;
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(9px,1.8vw,13px);
+    font-weight: 700;
+    padding: 6px 18px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+        #instrBtn:hover, #instrBtn:active {
+            background: rgba(255,215,0,0.2);
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.4);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="characterSelect">
+            <div class="star-field" id="starField"></div>
+            <h1>🏃 CURSA DE<br>MOSSOS 5K</h1>
+            <p class="subtitle">Selecciona con quién correr</p>
+            <div class="playerCards">
+                <div class="playerCard" id="card-camilo">
+                    <span class="card-icon" style="display:block;line-height:1">
+                        <svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.5))">
+                          <!-- cuello musculoso -->
+                          <rect x="26" y="55" width="20" height="12" rx="4" fill="#C8784A"/>
+                          <!-- trapecio/hombros -->
+                          <ellipse cx="36" cy="66" rx="22" ry="8" fill="#C8784A"/>
+                          <!-- camiseta/hombros -->
+                          <ellipse cx="36" cy="67" rx="22" ry="7" fill="#2a6cde"/>
+                          <!-- sombra cuello -->
+                          <ellipse cx="36" cy="56" rx="8" ry="3" fill="rgba(0,0,0,0.18)"/>
+                          <!-- oreja izquierda -->
+                          <ellipse cx="15.5" cy="37" rx="4" ry="5.5" fill="#D4845C"/>
+                          <!-- oreja derecha -->
+                          <ellipse cx="56.5" cy="37" rx="4" ry="5.5" fill="#D4845C"/>
+                          <!-- detalle oreja izq -->
+                          <ellipse cx="15.5" cy="37" rx="2.2" ry="3.5" fill="#C07048"/>
+                          <!-- detalle oreja der -->
+                          <ellipse cx="56.5" cy="37" rx="2.2" ry="3.5" fill="#C07048"/>
+                          <!-- cara base - mandibula cuadrada de tio fuerte -->
+                          <path d="M16 28 Q15 48 22 56 Q29 62 36 62 Q43 62 50 56 Q57 48 56 28 Q50 14 36 14 Q22 14 16 28Z" fill="#E8935A"/>
+                          <!-- iluminacion cara -->
+                          <ellipse cx="32" cy="30" rx="10" ry="12" fill="rgba(255,200,150,0.22)"/>
+                          <!-- mejilla izquierda rubor -->
+                          <ellipse cx="21" cy="43" rx="5" ry="3.5" fill="rgba(220,100,80,0.18)"/>
+                          <!-- mejilla derecha rubor -->
+                          <ellipse cx="51" cy="43" rx="5" ry="3.5" fill="rgba(220,100,80,0.18)"/>
+                          <!-- PELO CORTO OSCURO - base -->
+                          <path d="M16 28 Q17 12 36 10 Q55 12 56 28 Q50 16 36 15 Q22 16 16 28Z" fill="#1c1008"/>
+                          <!-- pelo - volumen superior -->
+                          <ellipse cx="36" cy="13" rx="17" ry="8" fill="#1c1008"/>
+                          <!-- pelo - flequillo estructurado -->
+                          <path d="M20 22 Q28 17 36 16 Q44 17 52 22 Q46 19 36 18 Q26 19 20 22Z" fill="#2a1a0a"/>
+                          <!-- linea pelo natural -->
+                          <path d="M19 26 Q22 20 36 17 Q50 20 53 26" fill="none" stroke="#1c1008" stroke-width="2.5" stroke-linecap="round"/>
+                          <!-- sien izquierda pelo -->
+                          <ellipse cx="17" cy="28" rx="4" ry="7" fill="#1c1008"/>
+                          <!-- sien derecha pelo -->
+                          <ellipse cx="55" cy="28" rx="4" ry="7" fill="#1c1008"/>
+                          <!-- CEJAS POBLADAS -->
+                          <path d="M21 29 Q27 26.5 32 28" stroke="#1c1008" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                          <path d="M40 28 Q45 26.5 51 29" stroke="#1c1008" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+                          <!-- OJOS -->
+                          <ellipse cx="28" cy="36" rx="6" ry="4.5" fill="white"/>
+                          <ellipse cx="44" cy="36" rx="6" ry="4.5" fill="white"/>
+                          <circle cx="29" cy="36" r="3.2" fill="#2d5a1a"/>
+                          <circle cx="45" cy="36" r="3.2" fill="#2d5a1a"/>
+                          <circle cx="29.5" cy="36" r="1.8" fill="#0a0a0a"/>
+                          <circle cx="45.5" cy="36" r="1.8" fill="#0a0a0a"/>
+                          <circle cx="30.8" cy="34.5" r="1.1" fill="white"/>
+                          <circle cx="46.8" cy="34.5" r="1.1" fill="white"/>
+                          <!-- parpado superior izq -->
+                          <path d="M22 33.5 Q28 31 34 33.5" stroke="#1c1008" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                          <!-- parpado superior der -->
+                          <path d="M38 33.5 Q44 31 50 33.5" stroke="#1c1008" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                          <!-- NARIZ -->
+                          <ellipse cx="33" cy="44" rx="3.5" ry="2.2" fill="#C87448"/>
+                          <ellipse cx="39" cy="44" rx="3.5" ry="2.2" fill="#C87448"/>
+                          <path d="M33 42 Q36 43.5 39 42" stroke="#B06040" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+                          <!-- BOCA - sonrisa confiada -->
+                          <path d="M27 50 Q36 57 45 50" stroke="#9a4a2a" stroke-width="2" fill="none" stroke-linecap="round"/>
+                          <path d="M29 50.5 Q36 55.5 43 50.5 Q36 54 29 50.5Z" fill="rgba(255,255,255,0.75)"/>
+                          <!-- BARBA DE 3 DIAS -->
+                          <ellipse cx="36" cy="55" rx="14" ry="6" fill="rgba(30,15,5,0.22)"/>
+                          <ellipse cx="22" cy="48" rx="5" ry="6" fill="rgba(30,15,5,0.15)"/>
+                          <ellipse cx="50" cy="48" rx="5" ry="6" fill="rgba(30,15,5,0.15)"/>
+                        </svg>
+                    </span>
+                    <h2>Camilo</h2>
+                    <p class="card-desc">El novato<br>Su primera carrera 🔥</p>
+                </div>
+                <div class="playerCard" id="card-rafa">
+                    <span class="card-icon" style="display:block;line-height:1">
+                        <svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.5))">
+                          <!-- cuello -->
+                          <rect x="27" y="54" width="18" height="12" rx="4" fill="#D4956A"/>
+                          <!-- cara -->
+                          <ellipse cx="36" cy="38" rx="20" ry="22" fill="#F0C090"/>
+                          <!-- mejilla -->
+                          <ellipse cx="50" cy="45" rx="7" ry="5" fill="rgba(220,160,120,0.4)"/>
+                          <!-- BARBA CORTA - zona oscura mandibula -->
+                          <ellipse cx="36" cy="54" rx="17" ry="9" fill="rgba(18,12,12,0.82)"/>
+                          <ellipse cx="18" cy="48" rx="6" ry="8" fill="rgba(18,12,12,0.70)"/>
+                          <ellipse cx="54" cy="48" rx="6" ry="8" fill="rgba(18,12,12,0.70)"/>
+                          <!-- bigote -->
+                          <ellipse cx="36" cy="46" rx="9" ry="3.5" fill="rgba(12,8,8,0.90)"/>
+                          <!-- oreja -->
+                          <ellipse cx="16" cy="38" rx="4" ry="5.5" fill="#D4956A"/>
+                          <!-- PELO RIZADO NEGRO - rizos individuales -->
+                          <ellipse cx="36" cy="17" rx="18" ry="10" fill="#1a1010"/>
+                          <!-- rizos superiores izquierda -->
+                          <circle cx="20" cy="21" r="7" fill="#1a1010"/>
+                          <circle cx="26" cy="17" r="6.5" fill="#1a1010"/>
+                          <!-- rizos superiores centro -->
+                          <circle cx="33" cy="15" r="6" fill="#1a1010"/>
+                          <circle cx="40" cy="15" r="6" fill="#1a1010"/>
+                          <!-- rizos superiores derecha -->
+                          <circle cx="47" cy="17" r="6" fill="#1a1010"/>
+                          <circle cx="52" cy="21" r="6.5" fill="#1a1010"/>
+                          <!-- sien izquierda -->
+                          <ellipse cx="16" cy="30" rx="5" ry="8" fill="#1a1010"/>
+                          <!-- sien derecha -->
+                          <ellipse cx="56" cy="30" rx="5" ry="7" fill="#1a1010"/>
+                          <!-- rizos detalle textura -->
+                          <circle cx="23" cy="17" r="4.5" fill="#242020"/>
+                          <circle cx="30" cy="13" r="4" fill="#242020"/>
+                          <circle cx="38" cy="13" r="4" fill="#242020"/>
+                          <circle cx="46" cy="15" r="4" fill="#242020"/>
+                          <!-- ojos blancos -->
+                          <ellipse cx="30" cy="37" rx="5.5" ry="4" fill="white"/>
+                          <ellipse cx="43" cy="37" rx="5.5" ry="4" fill="white"/>
+                          <!-- iris -->
+                          <circle cx="31" cy="37" r="2.8" fill="#3a2800"/>
+                          <circle cx="44" cy="37" r="2.8" fill="#3a2800"/>
+                          <!-- brillo ojo -->
+                          <circle cx="32.2" cy="35.8" r="1" fill="white"/>
+                          <circle cx="45.2" cy="35.8" r="1" fill="white"/>
+                          <!-- cejas negras -->
+                          <path d="M24.5 31.5 Q30 29.5 35 31" stroke="#111" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+                          <path d="M38 31 Q43 29.5 49.5 31.5" stroke="#111" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+                          <!-- nariz -->
+                          <ellipse cx="52" cy="41" rx="3.5" ry="2.5" fill="#C87848"/>
+                          <!-- GAFAS DE PASTA NEGRAS -->
+                          <!-- lente izquierda tintada -->
+                          <ellipse cx="30" cy="37" rx="7" ry="5.5" fill="rgba(160,200,255,0.20)"/>
+                          <!-- lente derecha tintada -->
+                          <ellipse cx="43" cy="37" rx="7" ry="5.5" fill="rgba(160,200,255,0.20)"/>
+                          <!-- montura lente izquierda -->
+                          <ellipse cx="30" cy="37" rx="7" ry="5.5" fill="none" stroke="#111" stroke-width="2.8"/>
+                          <!-- montura lente derecha -->
+                          <ellipse cx="43" cy="37" rx="7" ry="5.5" fill="none" stroke="#111" stroke-width="2.8"/>
+                          <!-- puente nasal -->
+                          <line x1="37" y1="35.5" x2="36" y2="35.5" stroke="#111" stroke-width="2.2" stroke-linecap="round"/>
+                          <!-- patilla izquierda -->
+                          <path d="M23 37 Q18 37 16 38" stroke="#111" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                          <!-- patilla derecha -->
+                          <path d="M50 37 Q55 37 57 38" stroke="#111" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                          <!-- brillo gafas -->
+                          <path d="M25 33.5 Q28 32 31 33" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+                          <path d="M38 33.5 Q41 32 44 33" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <h2>Rafa</h2>
+                    <p class="card-desc">El añejo<br>El señor eléctrico ⚡</p>
+                </div>
+                <div class="playerCard" id="card-alba">
+                    <span class="card-icon" style="display:block;line-height:1">
+                        <svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.5))">
+                          <path d="M15 32 Q10 50 11 68 Q15 72 18 68 Q17 52 18 36Z" fill="#5a1a00"/>
+                          <path d="M57 32 Q62 50 61 68 Q57 72 54 68 Q55 52 54 36Z" fill="#5a1a00"/>
+                          <path d="M13 35 Q8 54 10 70 Q14 73 16 70 Q15 54 16 37Z" fill="#7a2800"/>
+                          <path d="M59 35 Q64 54 62 70 Q58 73 56 70 Q57 54 56 37Z" fill="#7a2800"/>
+                          <ellipse cx="36" cy="70" rx="24" ry="7" fill="#1a2a4a"/>
+                          <rect x="12" y="63" width="48" height="3.5" rx="1" fill="#c49000"/>
+                          <rect x="17" y="67" width="9" height="5" rx="1" fill="#c49000"/>
+                          <rect x="18" y="68" width="7" height="3" rx="0.5" fill="#f0c020"/>
+                          <rect x="27" y="54" width="18" height="12" rx="4" fill="#F0A880"/>
+                          <ellipse cx="36" cy="55" rx="7" ry="2.5" fill="rgba(0,0,0,0.14)"/>
+                          <ellipse cx="15.5" cy="36" rx="3.8" ry="5" fill="#F0A880"/>
+                          <ellipse cx="56.5" cy="36" rx="3.8" ry="5" fill="#F0A880"/>
+                          <ellipse cx="15.5" cy="36" rx="2" ry="3.2" fill="#D88868"/>
+                          <ellipse cx="56.5" cy="36" rx="2" ry="3.2" fill="#D88868"/>
+                          <circle cx="14.5" cy="41" r="2" fill="#FFD700"/>
+                          <path d="M17 27 Q16 46 22 55 Q29 62 36 62 Q43 62 50 55 Q56 46 55 27 Q50 13 36 13 Q22 13 17 27Z" fill="#F5B090"/>
+                          <ellipse cx="31" cy="29" rx="9" ry="11" fill="rgba(255,210,180,0.22)"/>
+                          <ellipse cx="21" cy="44" rx="5.5" ry="3.5" fill="rgba(255,130,110,0.22)"/>
+                          <ellipse cx="51" cy="44" rx="5.5" ry="3.5" fill="rgba(255,130,110,0.22)"/>
+                          <path d="M17 27 Q18 11 36 9 Q54 11 55 27 Q49 14 36 13 Q23 14 17 27Z" fill="#6b2200"/>
+                          <ellipse cx="36" cy="12" rx="17" ry="8" fill="#6b2200"/>
+                          <path d="M19 24 Q27 16 36 15 Q45 16 53 24 Q47 18 36 17 Q25 18 19 24Z" fill="#8B3300"/>
+                          <path d="M36 9 L36 20" stroke="#5a1a00" stroke-width="1.5"/>
+                          <ellipse cx="17" cy="28" rx="4" ry="8" fill="#6b2200"/>
+                          <ellipse cx="55" cy="28" rx="4" ry="8" fill="#6b2200"/>
+                          <path d="M17 32 Q14 44 15 56 Q18 60 20 56 Q19 46 20 34Z" fill="#7a2800"/>
+                          <path d="M55 32 Q58 44 57 56 Q54 60 52 56 Q53 46 52 34Z" fill="#7a2800"/>
+                          <path d="M22 28 Q28 25 33 27" stroke="#5a1a00" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                          <path d="M39 27 Q44 25 50 28" stroke="#5a1a00" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                          <ellipse cx="28" cy="36" rx="6.5" ry="4.8" fill="white"/>
+                          <ellipse cx="44" cy="36" rx="6.5" ry="4.8" fill="white"/>
+                          <circle cx="28.5" cy="36" r="3.4" fill="#3d1a00"/>
+                          <circle cx="44.5" cy="36" r="3.4" fill="#3d1a00"/>
+                          <circle cx="28.8" cy="36" r="2" fill="#0d0805"/>
+                          <circle cx="44.8" cy="36" r="2" fill="#0d0805"/>
+                          <circle cx="30.2" cy="34.5" r="1.2" fill="white"/>
+                          <circle cx="46.2" cy="34.5" r="1.2" fill="white"/>
+                          <circle cx="27.5" cy="37.5" r="0.5" fill="rgba(255,255,255,0.6)"/>
+                          <circle cx="43.5" cy="37.5" r="0.5" fill="rgba(255,255,255,0.6)"/>
+                          <path d="M21.5 33 Q28 30 34.5 33" stroke="#3d1a00" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                          <path d="M37.5 33 Q44 30 50.5 33" stroke="#3d1a00" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                          <line x1="23" y1="32.5" x2="21.5" y2="30.2" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="26" y1="31" x2="25" y2="28.6" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="29" y1="30.2" x2="28.8" y2="27.8" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="32" y1="31" x2="32.2" y2="28.6" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="39" y1="32.5" x2="37.5" y2="30.2" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="42" y1="31" x2="41" y2="28.6" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="45" y1="30.2" x2="44.8" y2="27.8" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <line x1="48" y1="31" x2="48.2" y2="28.6" stroke="#3d1a00" stroke-width="1.2" stroke-linecap="round"/>
+                          <ellipse cx="33.5" cy="44" rx="2.8" ry="1.8" fill="#D88868"/>
+                          <ellipse cx="38.5" cy="44" rx="2.8" ry="1.8" fill="#D88868"/>
+                          <path d="M34 42 Q36 43 38 42" stroke="#C07050" stroke-width="1" fill="none" stroke-linecap="round"/>
+                          <path d="M26 50.5 Q36 58 46 50.5" stroke="#C06050" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                          <path d="M27 50 Q31 47.5 36 49 Q41 47.5 45 50" stroke="#D07060" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                          <path d="M30 51 Q36 55.5 42 51 Q36 54 30 51Z" fill="rgba(255,255,255,0.78)"/>
+                          <path d="M28 51 Q36 56.5 44 51 Q36 54 28 51Z" fill="rgba(220,100,90,0.38)"/>
+                        </svg>
+                    </span>
+                    <h2>Alba</h2>
+                    <p class="card-desc">La mosso<br>El color rosa es lo suyo 💖</p>
+                </div>
+                <div class="playerCard" id="card-therian">
+                    <span class="card-icon" style="display:block;line-height:1"><svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="55" width="20" height="12" rx="4" fill="#7B3E10"/><rect x="22" y="54" width="28" height="6" rx="3" fill="#8B0000"/><circle cx="36" cy="57" r="2.5" fill="#f0c020"/><path d="M14 26 Q10 8 18 12 Q22 18 20 28Z" fill="#6B2E08"/><path d="M58 26 Q62 8 54 12 Q50 18 52 28Z" fill="#6B2E08"/><path d="M14.5 25 Q11.5 11 17.5 14 Q20 19 19.5 27Z" fill="#C4704A"/><path d="M57.5 25 Q60.5 11 54.5 14 Q52 19 52.5 27Z" fill="#C4704A"/><ellipse cx="14" cy="40" rx="6" ry="9" fill="#8B4513"/><ellipse cx="58" cy="40" rx="6" ry="9" fill="#8B4513"/><path d="M16 28 Q14 46 18 54 Q25 63 36 63 Q47 63 54 54 Q58 46 56 28 Q50 12 36 12 Q22 12 16 28Z" fill="#C4704A"/><ellipse cx="36" cy="50" rx="13" ry="9" fill="#D4845A"/><ellipse cx="36" cy="48" rx="10" ry="7" fill="#E0A070"/><ellipse cx="36" cy="43" rx="5.5" ry="3.8" fill="#1a0a00"/><ellipse cx="34" cy="42" rx="1.8" ry="1.2" fill="rgba(255,255,255,0.25)"/><path d="M36 47 L36 52" stroke="#9a4a20" stroke-width="1.5" stroke-linecap="round"/><path d="M28 52 Q36 57 44 52" stroke="#9a4a20" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M16 28 Q18 13 36 12 Q54 13 56 28 Q50 14 36 13 Q22 14 16 28Z" fill="#3D1800"/><ellipse cx="36" cy="14" rx="16" ry="7" fill="#3D1800"/><ellipse cx="22" cy="22" rx="8" ry="6" fill="rgba(40,15,0,0.45)"/><ellipse cx="50" cy="22" rx="8" ry="6" fill="rgba(40,15,0,0.45)"/><ellipse cx="26" cy="33" rx="6.5" ry="5" fill="white"/><ellipse cx="46" cy="33" rx="6.5" ry="5" fill="white"/><circle cx="26.5" cy="33" r="3.5" fill="#8B4500"/><circle cx="46.5" cy="33" r="3.5" fill="#8B4500"/><circle cx="26.8" cy="33" r="2.1" fill="#0d0500"/><circle cx="46.8" cy="33" r="2.1" fill="#0d0500"/><circle cx="28.2" cy="31.5" r="1.2" fill="white"/><circle cx="48.2" cy="31.5" r="1.2" fill="white"/><path d="M20 30 Q26 27 32 30" stroke="#3D1800" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M40 30 Q46 27 52 30" stroke="#3D1800" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="26" cy="50" r="1.2" fill="rgba(30,10,0,0.5)"/><circle cx="30" cy="51.5" r="1.2" fill="rgba(30,10,0,0.5)"/><circle cx="46" cy="50" r="1.2" fill="rgba(30,10,0,0.5)"/><circle cx="42" cy="51.5" r="1.2" fill="rgba(30,10,0,0.5)"/><line x1="16" y1="50" x2="30" y2="51.5" stroke="rgba(255,240,200,0.7)" stroke-width="0.8" stroke-linecap="round"/><line x1="16" y1="53" x2="30" y2="53" stroke="rgba(255,240,200,0.7)" stroke-width="0.8" stroke-linecap="round"/><line x1="56" y1="50" x2="42" y2="51.5" stroke="rgba(255,240,200,0.7)" stroke-width="0.8" stroke-linecap="round"/><line x1="56" y1="53" x2="42" y2="53" stroke="rgba(255,240,200,0.7)" stroke-width="0.8" stroke-linecap="round"/></svg></span>
+                    <h2>Therian</h2>
+                    <p class="card-desc">El salvaje<br>Marrón & Negro</p>
+                </div>
+            </div>
+            <button id="instrBtn" onclick="mostrarInstrucciones()">📋 Instrucciones</button>
+            <p style="position:relative;z-index:1;margin-top:12px;font-family:'Montserrat',sans-serif;font-size:clamp(11px,2vw,14px);font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;">❤️ made with love by Alejandro</p>
+        </div>
+
+        <!-- PANTALLA INSTRUCCIONES (hermana de characterSelect, misma capa) -->
+        <div id="instrScreen" onclick="cerrarInstrucciones()">
+            <h2>🏃 Cómo Jugar</h2>
+            <div class="instr-rule">
+                <span class="instr-icon">🎯</span>
+                <div class="instr-text"><strong>Objetivo:</strong> supera los <strong>9 niveles</strong> de dificultad para completar la carrera y ganar el juego.</div>
+            </div>
+            <div class="instr-rule">
+                <span class="instr-icon">🦘</span>
+                <div class="instr-text"><strong>Saltar:</strong> pulsa <strong>ESPACIO</strong> o toca la pantalla <strong>una vez</strong> para saltar por encima de los barriles.</div>
+            </div>
+            <div class="instr-rule">
+                <span class="instr-icon">✌️</span>
+                <div class="instr-text"><strong>Doble salto:</strong> toca <strong>dos veces seguidas</strong> (o pulsa ESPACIO dos veces) para ganar más altura.</div>
+            </div>
+            <div class="instr-rule">
+                <span class="instr-icon">🛢️</span>
+                <div class="instr-text"><strong>Esquiva los barriles:</strong> si un barril te toca, pierdes una vida. ¡Sin vidas el juego termina!</div>
+            </div>
+            <div class="instr-rule">
+                <span class="instr-icon">🐂</span>
+                <div class="instr-text"><strong>Red Bull = Vida extra:</strong> recoge las latas para ganar <strong>+50 puntos</strong> y <strong>+1 vida</strong>, que te permite tocar un barril sin morir.</div>
+            </div>
+            <div id="instrTap">✋ Toca la pantalla para volver</div>
+        </div>
+
+        <canvas id="canvas"></canvas>
+        <div id="ui">
+            <div id="title">🏃 CURSA DE MOSSOS 5K</div>
+            <div class="ui-stat">Pts: <span id="score" style="color:#FFD700">0</span></div>
+            <div class="ui-stat">Récord: <span id="highScoreDisplay" style="color:#FFD700">0</span></div>
+            <div class="ui-stat">Nivel: <span id="levelDisplay">1 — CALENTANDO</span></div>
+            <div id="livesDisplay" style="font-size: 1.2em; margin-top: 4px; filter: drop-shadow(2px 2px 2px #000);">❤️</div>
+            <div class="ui-hints">
+                <div>1 toque = Saltar &nbsp;|&nbsp; 2 toques = Doble salto</div>
+                <div style="margin-top: 3px; color:#FFD700">🔥 Esquiva &nbsp;|&nbsp; 🐂 Red Bull = +50 Pts + ❤️</div>
+            </div>
+        </div>
+        <div id="gameOver">
+            <div id="gameOverText">¡INTRIAGO TE GANARÁ ASÍ!</div>
+            <span>PUNTUACIÓN FINAL: <span id="finalScore" style="display:inline">0</span></span>
+        </div>
+    </div>
+
+    <script>
+        "use strict";
+
+        // --- SISTEMA DE AUDIO (Sintetizador Básico) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'jump') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, t);
+                osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
+            } else if (type === 'doubleJump') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, t);
+                osc.frequency.exponentialRampToValueAtTime(800, t + 0.15);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                osc.start(t); osc.stop(t + 0.15);
+            } else if (type === 'coin') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, t);
+                osc.frequency.setValueAtTime(1200, t + 0.1);
+                gain.gain.setValueAtTime(0.05, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                osc.start(t); osc.stop(t + 0.3);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.exponentialRampToValueAtTime(50, t + 0.3);
+                gain.gain.setValueAtTime(0.2, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                osc.start(t); osc.stop(t + 0.3);
+            } else if (type === 'levelup') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, t);
+                osc.frequency.setValueAtTime(554, t + 0.1);
+                osc.frequency.setValueAtTime(659, t + 0.2);
+                osc.frequency.setValueAtTime(880, t + 0.3);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.linearRampToValueAtTime(0.01, t + 0.6);
+                osc.start(t); osc.stop(t + 0.6);
+            }
+        }
+
+        // Personaje seleccionado
+        let selectedPlayer = 'camilo';
+        const PLAYER_TITLES = {
+            camilo:  '🏃 CAMILO — 5K', rafa: '🏃 RAFA — 5K',
+            alba:    '🏃 ALBA — 5K', therian: '🐕 THERIAN — 5K'
+        };
+        let lives = 1;
+        let invincibleFrames = 0;
+        const INVINCIBLE_FRAMES = 90; 
+
+        // Récord global
+        let highScore = parseInt(localStorage.getItem('mossos_highscore')) || 0;
+        document.getElementById('highScoreDisplay').textContent = highScore;
+
+        // Constantes del juego
+        const GAME_WIDTH = 1024;
+        const GAME_HEIGHT = 700;
+        const FPS = 60;
+        const GRAVITY = 0.8;
+        const JUMP_VELOCITY = -18.5; // Un poco más de salto para sentirlo mejor
+        const GROUND_HEIGHT = 100;
+        const PLAYER_SIZE = 163;
+        const BASE_SPEED = 8;
+        const MAX_JUMPS = 2;
+        const NIGHT_TIME = 60; 
+
+        // Colores para ciclo día/noche
+        const SKY_DAY = '#A8C8E8'; const SKY_NIGHT = '#0a0a2a';
+        const SUN_COLOR = '#FFD700'; const MOON_COLOR = '#F0F0F0';
+
+        // Niveles
+        const LEVELS = [
+            { min: 0,    name: '1 — CALENTANDO', speed: 10, spawnMin: 1500, spawnMax: 2000, sizeScale: 0.85, double: 0.1 },
+            { min: 0.1,  name: '2 — TROTANDO',   speed: 13, spawnMin: 1200, spawnMax: 1600, sizeScale: 1.0,  double: 0.2 },
+            { min: 0.2,  name: '3 — CORRIENDO',  speed: 16, spawnMin: 1000, spawnMax: 1400, sizeScale: 1.1,  double: 0.3 },
+            { min: 0.3,  name: '4 — SUDANDO',    speed: 19, spawnMin: 800,  spawnMax: 1200, sizeScale: 1.2,  double: 0.4 },
+            { min: 0.4,  name: '5 — A TOPE',     speed: 22, spawnMin: 650,  spawnMax: 1000, sizeScale: 1.3,  double: 0.5 },
+            { min: 0.5,  name: '6 — DESFONDADO', speed: 25, spawnMin: 500,  spawnMax: 800,  sizeScale: 1.4,  double: 0.6 },
+            { min: 0.6,  name: '7 — INFERNAL',   speed: 28, spawnMin: 400,  spawnMax: 650,  sizeScale: 1.5,  double: 0.7 },
+            { min: 0.75, name: '8 — LEGENDARIO', speed: 32, spawnMin: 300,  spawnMax: 500,  sizeScale: 1.6,  double: 0.8 },
+            { min: 1.0,  name: '9 — MODO DIOS',  speed: 36, spawnMin: 200,  spawnMax: 350,  sizeScale: 1.7,  double: 0.9 },
+        ];
+
+        const getCurrentLevel = () => {
+            const mins = gameTime / 60;
+            let lvl = LEVELS[0];
+            for (const l of LEVELS) { if (mins >= l.min) lvl = l; else break; }
+            return lvl;
+        };
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let dpr = 1;
+
+        // Variables globales
+        let player = { x: 100, y: 0, width: 0, height: 0, vx: 0, vy: 0, grounded: true, jumpsLeft: 2, frame: 0, isSmiling: false, smileTimer: 0 };
+        let obstacles = [], powerups = [], clouds = [], trees = [], mountains = [], particles = [], floatingTexts = [], score = 0, gameSpeed = 1, gameRunning = false;
+        const RIVAL_DEFAULT = { x: 0, y: 0, width: 0, height: 0, frame: 0, visible: false, overtaken: false, overtakeAnim: 0, enterAnim: 0 };
+        let rival = {...RIVAL_DEFAULT}, rival2 = {...RIVAL_DEFAULT}, rival0 = {...RIVAL_DEFAULT}, rival3 = {...RIVAL_DEFAULT};
+        let spawnTimeout, powerUpTimeout, updateTimeout, keys = {}, prevKeys = {}, touchJustPressed = false, gameTime = 0;
+        let currentLevelName = '', levelUpAnim = 0, screenShake = 0;
+
+        const initState = () => {
+            player = { x: 100, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, vx: 0, vy: 0, grounded: true, jumpsLeft: MAX_JUMPS, frame: 0, isSmiling: false, smileTimer: 0 };
+            obstacles = []; powerups = []; clouds = []; trees = []; mountains = []; particles = []; floatingTexts = [];
+            score = 0; gameSpeed = BASE_SPEED; gameRunning = true; lives = 1; invincibleFrames = 0; updateLivesDisplay();
+            keys = {}; prevKeys = {}; touchJustPressed = false; gameTime = 0; screenShake = 0;
+            currentLevelName = LEVELS[0].name; levelUpAnim = 0;
+            rival = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0, enterAnim: 0 };
+            rival2 = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0 };
+            rival0 = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0 };
+            rival3 = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0 };
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('levelDisplay').textContent = LEVELS[0].name;
+            document.getElementById('highScoreDisplay').textContent = highScore;
+        };
+
+        // Fuegos artificiales
+        let fireworkParticles = [];
+        let freezeTimer = 0;
+        const FREEZE_FRAMES = 55;
+
+        // Utilidades
+        const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        
+        // COLISIONES MEJORADAS (Hitbox más indulgente)
+        const getHitbox = (entity, isPlayer=false) => {
+            const marginX = isPlayer ? entity.width * 0.3 : entity.width * 0.1;
+            const marginY = isPlayer ? entity.height * 0.1 : entity.height * 0.1;
+            return {
+                x: entity.x + marginX,
+                y: entity.y + marginY,
+                width: entity.width - marginX * 2,
+                height: entity.height - marginY * 2
+            };
+        };
+        const rectCollide = (r1, r2) => {
+            const h1 = getHitbox(r1, true);
+            const h2 = getHitbox(r2, false);
+            return h1.x < h2.x + h2.width && h1.x + h1.width > h2.x &&
+                   h1.y < h2.y + h2.height && h1.y + h1.height > h2.y;
+        };
+
+        const resize = () => {
+            dpr = window.devicePixelRatio || 1;
+            canvas.width = GAME_WIDTH * dpr;
+            canvas.height = GAME_HEIGHT * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+        };
+
+        const initBackground = () => {
+            clouds.length = 0; trees.length = 0; mountains.length = 0;
+            // City buildings (background, slow parallax)
+            const buildingConfigs = [
+                {w:160, h:280, wc:4, wr:7}, {w:220, h:220, wc:5, wr:5}, {w:130, h:340, wc:3, wr:8},
+                {w:280, h:180, wc:6, wr:4}, {w:100, h:300, wc:3, wr:7}, {w:190, h:240, wc:4, wr:6},
+                {w:240, h:200, wc:5, wr:5}, {w:150, h:320, wc:3, wr:8}
+            ];
+            let bx = -100;
+            for (let i = 0; i < 8; i++) {
+                const cfg = buildingConfigs[i % buildingConfigs.length];
+                mountains.push({
+                    x: bx, width: cfg.w, height: cfg.h,
+                    roofH: randomInt(10, 30),
+                    winCols: cfg.wc, winRows: cfg.wr,
+                    seed: randomInt(0, 100),
+                    speed: 0.35
+                });
+                bx += cfg.w + randomInt(8, 35);
+            }
+            for (let i = 0; i < 4; i++) clouds.push({ x: randomInt(0, GAME_WIDTH), y: randomInt(40, 140), size: randomInt(35, 70), speed: 0.25 });
+            // Lampposts (foreground, normal speed)
+            for (let i = 0; i < 6; i++) trees.push({ x: randomInt(-200, GAME_WIDTH), y: GAME_HEIGHT - GROUND_HEIGHT, height: randomInt(180, 260), width: randomInt(50, 70), speed: 1.0 });
+        };
+
+        const drawRunner = (ctx, x, y, w, h, frame) => { /* CAMILO - Chico joven y fuerte */
+            ctx.save();
+            ctx.translate(x + w * 0.5, y + h);
+            const t = frame * 2.0;
+            const runCycle = Math.sin(t * 0.5);
+            const runCycleCos = Math.cos(t * 0.5);
+            const runCycle2 = Math.sin(t * 1.0);
+            let currentBodyLean = -0.20 + runCycle2 * 0.06;
+            if (!player.grounded) currentBodyLean = -0.10;
+            const bodyBob = Math.abs(runCycleCos) * h * 0.05;
+            const HEAD_R = h * 0.125;
+            const TORSO_H = h * 0.31;
+            const TORSO_W = w * 0.38; // más ancho = más musculoso
+            const WAIST_Y = -(h * 0.44) + bodyBob;
+            const HIP_Y = WAIST_Y + h * 0.03;
+            const SHOULDER_Y = WAIST_Y - TORSO_H * 0.95;
+            const HEAD_Y = SHOULDER_Y - h * 0.14;
+            const SKIN = '#FFCBA4', SKIN_D = '#E5A882', SKIN_HL = '#FFE0C0';
+            const SHIRT = '#E8231A', SHIRT_L = '#FF5540', SHIRT_D = '#AA1510';
+            const SHORT = '#1A1AE8', SHORT_D = '#0E0EA8';
+            const SHOE_W = '#F8F8F8', SHOE_S = '#E8231A', SHOE_D = '#CCCCCC';
+            const SOCK = '#FFFFFF';
+            const HAIR = '#1a0a00'; // pelo oscuro
+            // shadow
+            if (player.grounded) {
+                ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.ellipse(0, -2, w*0.52*(1+Math.abs(runCycle)*0.15), 6, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            }
+            const thighLen = h * 0.25, shinLen = h * 0.23, legThick = w * 0.155; // piernas más gruesas
+            const drawLeg = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save();
+                ctx.translate(isBack ? w*0.04 : 0, HIP_Y);
+                ctx.rotate(currentBodyLean);
+                ctx.rotate(phase * 0.70 + runCycle2 * 0.18);
+                const sg = ctx.createLinearGradient(-legThick*0.6, 0, legThick*0.6, thighLen*0.55);
+                sg.addColorStop(0, isBack ? SHORT_D : SHORT);
+                sg.addColorStop(1, isBack ? '#0808A0' : SHORT_D);
+                ctx.fillStyle = sg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick*0.58, 0); ctx.lineTo(legThick*0.58, 0);
+                ctx.lineTo(legThick*0.48, thighLen*0.55); ctx.lineTo(-legThick*0.48, thighLen*0.55);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, thighLen*0.55);
+                let kb = 0.18; if (phase > 0) kb += phase * 1.3; if (phase < -0.5) kb *= 0.5;
+                ctx.rotate(kb);
+                const shg = ctx.createLinearGradient(-legThick*0.5, 0, legThick*0.5, shinLen);
+                shg.addColorStop(0, SKIN); shg.addColorStop(1, SKIN_D); ctx.fillStyle = shg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick*0.5, 0); ctx.lineTo(legThick*0.5, 0);
+                ctx.lineTo(legThick*0.40, shinLen*0.82); ctx.lineTo(-legThick*0.40, shinLen*0.82);
+                ctx.closePath(); ctx.fill();
+                // músculo pantorrilla
+                ctx.strokeStyle = SKIN_D; ctx.lineWidth = legThick*0.18; ctx.lineCap='round';
+                ctx.beginPath(); ctx.moveTo(legThick*0.1, shinLen*0.2); ctx.quadraticCurveTo(legThick*0.42, shinLen*0.45, legThick*0.30, shinLen*0.72); ctx.stroke();
+                ctx.translate(0, shinLen*0.82);
+                ctx.fillStyle = SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.42, 0, legThick*0.84, shinLen*0.14, 3); ctx.fill();
+                ctx.translate(0, shinLen*0.12);
+                const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1;
+                ctx.fillStyle = '#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08, sH*0.65, sLen*1.05, sH*0.32, 4); ctx.fill();
+                const shoeGrad = ctx.createLinearGradient(sOff, 0, sOff+sLen, sH);
+                shoeGrad.addColorStop(0, SHOE_W); shoeGrad.addColorStop(1, SHOE_D); ctx.fillStyle = shoeGrad;
+                ctx.beginPath();
+                ctx.moveTo(sOff, sH*0.65); ctx.lineTo(sOff+sLen*0.85, sH*0.65);
+                ctx.bezierCurveTo(sOff+sLen*1.05, sH*0.65, sOff+sLen*1.05, sH*0.15, sOff+sLen*0.80, sH*0.1);
+                ctx.lineTo(sOff+sLen*0.35, 0); ctx.bezierCurveTo(sOff+sLen*0.1, -sH*0.05, sOff-sLen*0.05, sH*0.2, sOff, sH*0.65);
+                ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = SHOE_S; ctx.lineWidth = sH*0.22; ctx.lineCap='round';
+                ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28, sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55, sH*0.1, sOff+sLen*0.75, sH*0.12, sOff+sLen*0.82, sH*0.3); ctx.stroke();
+                ctx.lineCap='butt'; ctx.restore();
+            };
+            ctx.save(); ctx.globalAlpha = 0.78; drawLeg(true); ctx.restore();
+            // TORSO MUSCULOSO
+            ctx.save(); ctx.translate(0, WAIST_Y); ctx.rotate(currentBodyLean);
+            ctx.fillStyle = SHORT;
+            ctx.beginPath(); ctx.roundRect(-TORSO_W*0.72, -4, TORSO_W*1.44, 14, 4); ctx.fill();
+            const tg = ctx.createLinearGradient(-TORSO_W*0.6, 0, TORSO_W*0.6, -TORSO_H);
+            tg.addColorStop(0, SHIRT_D); tg.addColorStop(0.4, SHIRT); tg.addColorStop(1, SHIRT_L);
+            ctx.fillStyle = tg;
+            ctx.beginPath();
+            ctx.moveTo(-TORSO_W*0.62, 0); ctx.lineTo(TORSO_W*0.62, 0);
+            ctx.lineTo(TORSO_W*0.68, -TORSO_H); ctx.lineTo(-TORSO_W*0.58, -TORSO_H);
+            ctx.closePath(); ctx.fill();
+            // definición muscular en pecho
+            ctx.strokeStyle = SHIRT_D; ctx.lineWidth = 1.5; ctx.lineCap='round'; ctx.globalAlpha=0.5;
+            ctx.beginPath(); ctx.moveTo(-TORSO_W*0.08, -TORSO_H*0.42); ctx.lineTo(-TORSO_W*0.08, -TORSO_H*0.82); ctx.stroke();
+            ctx.globalAlpha=1;
+            // brillo lateral musculoso
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.beginPath(); ctx.moveTo(TORSO_W*0.35, 0); ctx.lineTo(TORSO_W*0.62, 0); ctx.lineTo(TORSO_W*0.68, -TORSO_H); ctx.lineTo(TORSO_W*0.40, -TORSO_H); ctx.closePath(); ctx.fill();
+            // dorsal
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.beginPath(); ctx.moveTo(-TORSO_W*0.62, 0); ctx.lineTo(-TORSO_W*0.22, 0); ctx.lineTo(-TORSO_W*0.24, -TORSO_H); ctx.lineTo(-TORSO_W*0.58, -TORSO_H); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.92)';
+            ctx.beginPath(); ctx.roundRect(-TORSO_W*0.28, -TORSO_H*0.72, TORSO_W*0.56, TORSO_H*0.38, 3); ctx.fill();
+            ctx.fillStyle = SHIRT_D; ctx.font = `bold ${Math.round(TORSO_H*0.28)}px Arial`;
+            ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('10', 0, -TORSO_H*0.53);
+            ctx.restore();
+            const armLen = h * 0.22, foreLen = h * 0.20, armThick = w * 0.135; // brazos más gruesos
+            const drawArm = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save(); ctx.translate(isBack ? w*0.04 : 0, SHOULDER_Y); ctx.rotate(currentBodyLean);
+                ctx.rotate(-phase*0.85 + 0.25);
+                const mg = ctx.createLinearGradient(-armThick*0.5, 0, armThick*0.5, armLen*0.5);
+                mg.addColorStop(0, isBack ? SHIRT_D : SHIRT); mg.addColorStop(1, isBack ? SHIRT : SHIRT_L);
+                ctx.fillStyle = mg;
+                ctx.beginPath();
+                ctx.moveTo(-armThick*0.5, 0); ctx.lineTo(armThick*0.5, 0);
+                ctx.lineTo(armThick*0.42, armLen*0.5); ctx.lineTo(-armThick*0.42, armLen*0.5);
+                ctx.closePath(); ctx.fill();
+                // bícep highlight
+                ctx.strokeStyle = isBack ? SHIRT_D : SHIRT_L; ctx.lineWidth=armThick*0.22; ctx.lineCap='round';
+                ctx.beginPath(); ctx.moveTo(armThick*0.12, armLen*0.05); ctx.quadraticCurveTo(armThick*0.45, armLen*0.22, armThick*0.28, armLen*0.48); ctx.stroke();
+                ctx.translate(0, armLen*0.5);
+                let eb = 0.45; if (phase < 0) eb += Math.abs(phase)*0.8; ctx.rotate(eb);
+                const fa = ctx.createLinearGradient(-armThick*0.45, 0, armThick*0.45, foreLen);
+                fa.addColorStop(0, SKIN); fa.addColorStop(1, SKIN_D); ctx.fillStyle = fa;
+                ctx.beginPath();
+                ctx.moveTo(-armThick*0.45, 0); ctx.lineTo(armThick*0.45, 0);
+                ctx.lineTo(armThick*0.34, foreLen*0.9); ctx.lineTo(-armThick*0.34, foreLen*0.9);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(0, foreLen*0.9, armThick*0.40, armThick*0.33, 0.3, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            };
+            ctx.save(); ctx.globalAlpha = 0.72; drawArm(true); ctx.restore();
+            drawLeg(false);
+            // CABEZA - Chico joven con cara definida y pelo corto
+            ctx.save(); ctx.translate(w*0.05, HEAD_Y); ctx.rotate(currentBodyLean * 0.4);
+            // cuello más grueso
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.roundRect(-HEAD_R*0.32, 0, HEAD_R*0.64, HEAD_R*0.55, 4); ctx.fill();
+            const hCy = -HEAD_R * 0.52;
+            // cabeza ligeramente más angular (mandíbula fuerte)
+            const faceGrad = ctx.createRadialGradient(HEAD_R*0.2, hCy-HEAD_R*0.2, 2, 0, hCy, HEAD_R*1.05);
+            faceGrad.addColorStop(0, SKIN_HL); faceGrad.addColorStop(0.5, SKIN); faceGrad.addColorStop(1, SKIN_D);
+            ctx.fillStyle = faceGrad;
+            ctx.beginPath(); ctx.ellipse(0, hCy, HEAD_R*1.0, HEAD_R, 0.05, 0, Math.PI*2); ctx.fill();
+            // mejilla/mandíbula más pronunciada
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.78, hCy+HEAD_R*0.22, HEAD_R*0.28, HEAD_R*0.22, 0.4, 0, Math.PI*2); ctx.fill();
+            // oreja
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.84, hCy+HEAD_R*0.08, HEAD_R*0.18, HEAD_R*0.25, 0, 0, Math.PI*2); ctx.fill();
+            // ojo
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.30, hCy-HEAD_R*0.12, HEAD_R*0.24, HEAD_R*0.15, 0.1, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#1a3a80';
+            ctx.beginPath(); ctx.arc(HEAD_R*0.38, hCy-HEAD_R*0.12, HEAD_R*0.11, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(HEAD_R*0.43, hCy-HEAD_R*0.17, HEAD_R*0.04, 0, Math.PI*2); ctx.fill();
+            // ceja espesa de chico joven
+            ctx.strokeStyle = HAIR; ctx.lineWidth = HEAD_R*0.16; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.08, hCy-HEAD_R*0.31); ctx.quadraticCurveTo(HEAD_R*0.35, hCy-HEAD_R*0.40, HEAD_R*0.60, hCy-HEAD_R*0.29); ctx.stroke();
+            // nariz fuerte
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.84, hCy+HEAD_R*0.06, HEAD_R*0.14, HEAD_R*0.10, 0.4, 0, Math.PI*2); ctx.fill();
+            // boca/expresión concentrada o sonrisa
+            ctx.strokeStyle = '#a06040'; ctx.lineWidth = HEAD_R*0.10; ctx.lineCap='round';
+            if (player.isSmiling) {
+                ctx.beginPath(); ctx.moveTo(HEAD_R*0.44, hCy+HEAD_R*0.28); ctx.quadraticCurveTo(HEAD_R*0.66, hCy+HEAD_R*0.46, HEAD_R*0.84, hCy+HEAD_R*0.30); ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.moveTo(HEAD_R*0.44, hCy+HEAD_R*0.30); ctx.lineTo(HEAD_R*0.82, hCy+HEAD_R*0.28); ctx.stroke();
+            }
+            // PELO CORTO ATLETICO - sin gorra
+            ctx.fillStyle = HAIR;
+            // pelo base encima de la cabeza
+            ctx.beginPath(); ctx.arc(-HEAD_R*0.05, hCy-HEAD_R*0.88, HEAD_R*0.85, Math.PI*0.9, Math.PI*0.1); ctx.fill();
+            // pelos despeinados / puntas
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.35, hCy-HEAD_R*1.05, HEAD_R*0.22, HEAD_R*0.32, -0.4, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.05, hCy-HEAD_R*1.12, HEAD_R*0.20, HEAD_R*0.28, 0.0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.42, hCy-HEAD_R*1.0, HEAD_R*0.18, HEAD_R*0.28, 0.3, 0, Math.PI*2); ctx.fill();
+            // flequillo
+            ctx.beginPath(); ctx.moveTo(-HEAD_R*0.55, hCy-HEAD_R*0.72);
+            ctx.quadraticCurveTo(-HEAD_R*0.1, hCy-HEAD_R*0.52, HEAD_R*0.30, hCy-HEAD_R*0.68); ctx.fill();
+            ctx.restore();
+            drawArm(false);
+            ctx.restore();
+        };
+
+        const drawRafa = (ctx, x, y, w, h, frame) => { /* RAFA - Hombre adulto 50 años con barriga */
+            ctx.save();
+            ctx.translate(x + w * 0.5, y + h);
+            const t = frame * 1.4; // más lento, más mayor
+            const runCycle = Math.sin(t * 0.5);
+            const runCycleCos = Math.cos(t * 0.5);
+            const runCycle2 = Math.sin(t * 1.0);
+            let currentBodyLean = -0.14 + runCycle2 * 0.04; // menos inclinación
+            if (!player.grounded) currentBodyLean = -0.06;
+            const bodyBob = Math.abs(runCycleCos) * h * 0.04;
+            const HEAD_R = h * 0.135; // cabeza más grande/redonda
+            const TORSO_H = h * 0.30;
+            const TORSO_W = w * 0.36;
+            const WAIST_Y = -(h * 0.43) + bodyBob;
+            const HIP_Y = WAIST_Y + h * 0.03;
+            const SHOULDER_Y = WAIST_Y - TORSO_H * 0.90;
+            const HEAD_Y = SHOULDER_Y - h * 0.16;
+            const SKIN = '#F0C090', SKIN_D = '#D4956A', SKIN_HL = '#F8D8B0';
+            const SHIRT = '#E86A10', SHIRT_L = '#FF9040', SHIRT_D = '#B04500';
+            const SHORT = '#1a1a1a', SHORT_D = '#0a0a0a';
+            const SHOE_W = '#F8F8F8', SHOE_S = '#E86A10', SHOE_D = '#CCCCCC';
+            const SOCK = '#FFFFFF';
+            const HAIR = '#1a1010'; // pelo negro
+            const HAIR_D = '#0a0a0a';
+            if (player.grounded) {
+                ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.ellipse(0, -2, w*0.50*(1+Math.abs(runCycle)*0.12), 6, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            }
+            const thighLen = h * 0.24, shinLen = h * 0.22, legThick = w * 0.145; // piernas más gruesas
+            const drawLeg = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save();
+                ctx.translate(isBack ? w*0.05 : 0, HIP_Y);
+                ctx.rotate(currentBodyLean);
+                ctx.rotate(phase * 0.50 + runCycle2 * 0.12); // menos amplitud (mayor cansado)
+                const sg = ctx.createLinearGradient(-legThick*0.6, 0, legThick*0.6, thighLen*0.55);
+                sg.addColorStop(0, isBack ? SHORT_D : SHORT);
+                sg.addColorStop(1, isBack ? '#050505' : SHORT_D);
+                ctx.fillStyle = sg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick*0.60, 0); ctx.lineTo(legThick*0.60, 0);
+                ctx.lineTo(legThick*0.50, thighLen*0.55); ctx.lineTo(-legThick*0.50, thighLen*0.55);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, thighLen*0.55);
+                let kb = 0.18; if (phase > 0) kb += phase * 1.0; if (phase < -0.5) kb *= 0.5;
+                ctx.rotate(kb);
+                const shg = ctx.createLinearGradient(-legThick*0.5, 0, legThick*0.5, shinLen);
+                shg.addColorStop(0, SKIN); shg.addColorStop(1, SKIN_D); ctx.fillStyle = shg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick*0.52, 0); ctx.lineTo(legThick*0.52, 0);
+                ctx.lineTo(legThick*0.40, shinLen*0.82); ctx.lineTo(-legThick*0.40, shinLen*0.82);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, shinLen*0.82);
+                ctx.fillStyle = SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.42, 0, legThick*0.84, shinLen*0.14, 3); ctx.fill();
+                ctx.translate(0, shinLen*0.12);
+                const sLen=legThick*2.1, sH=legThick*0.80, sOff=isBack?-legThick*0.2:legThick*0.1;
+                ctx.fillStyle = '#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08, sH*0.65, sLen*1.05, sH*0.32, 4); ctx.fill();
+                const shoeGrad = ctx.createLinearGradient(sOff, 0, sOff+sLen, sH);
+                shoeGrad.addColorStop(0, SHOE_W); shoeGrad.addColorStop(1, SHOE_D); ctx.fillStyle = shoeGrad;
+                ctx.beginPath();
+                ctx.moveTo(sOff, sH*0.65); ctx.lineTo(sOff+sLen*0.82, sH*0.65);
+                ctx.bezierCurveTo(sOff+sLen*1.02, sH*0.65, sOff+sLen*1.02, sH*0.15, sOff+sLen*0.78, sH*0.1);
+                ctx.lineTo(sOff+sLen*0.35, 0); ctx.bezierCurveTo(sOff+sLen*0.1, -sH*0.05, sOff-sLen*0.05, sH*0.2, sOff, sH*0.65);
+                ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = SHOE_S; ctx.lineWidth = sH*0.22; ctx.lineCap='round';
+                ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28, sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55, sH*0.1, sOff+sLen*0.75, sH*0.12, sOff+sLen*0.82, sH*0.3); ctx.stroke();
+                ctx.lineCap='butt'; ctx.restore();
+            };
+            ctx.save(); ctx.globalAlpha = 0.78; drawLeg(true); ctx.restore();
+            // TORSO CON BARRIGA
+            ctx.save(); ctx.translate(0, WAIST_Y); ctx.rotate(currentBodyLean);
+            // cinturilla/pantalón
+            ctx.fillStyle = SHORT;
+            ctx.beginPath(); ctx.roundRect(-TORSO_W*0.72, -4, TORSO_W*1.44, 16, 4); ctx.fill();
+            // BARRIGA - elipse prominente
+            const bellyBob = Math.abs(runCycleCos) * h * 0.008;
+            const bellyGrad = ctx.createRadialGradient(TORSO_W*0.3, -TORSO_H*0.22, 2, TORSO_W*0.25, -TORSO_H*0.28, TORSO_W*0.82);
+            bellyGrad.addColorStop(0, SHIRT_L); bellyGrad.addColorStop(0.5, SHIRT); bellyGrad.addColorStop(1, SHIRT_D);
+            ctx.fillStyle = bellyGrad;
+            ctx.beginPath();
+            ctx.ellipse(TORSO_W*0.22, -TORSO_H*0.28 + bellyBob, TORSO_W*0.80, TORSO_H*0.46, 0.1, 0, Math.PI*2);
+            ctx.fill();
+            // cuerpo de la camiseta (encima de la barriga)
+            const tg = ctx.createLinearGradient(-TORSO_W*0.6, 0, TORSO_W*0.5, -TORSO_H);
+            tg.addColorStop(0, SHIRT_D); tg.addColorStop(0.4, SHIRT); tg.addColorStop(1, SHIRT_L);
+            ctx.fillStyle = tg;
+            ctx.beginPath();
+            ctx.moveTo(-TORSO_W*0.60, -TORSO_H*0.15); ctx.lineTo(TORSO_W*0.52, -TORSO_H*0.15);
+            ctx.lineTo(TORSO_W*0.60, -TORSO_H); ctx.lineTo(-TORSO_W*0.55, -TORSO_H);
+            ctx.closePath(); ctx.fill();
+            // número dorsal
+            ctx.fillStyle = 'rgba(255,255,255,0.90)';
+            ctx.beginPath(); ctx.roundRect(-TORSO_W*0.26, -TORSO_H*0.85, TORSO_W*0.52, TORSO_H*0.35, 3); ctx.fill();
+            ctx.fillStyle = SHIRT_D; ctx.font = `bold ${Math.round(TORSO_H*0.28)}px Arial`;
+            ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('R', 0, -TORSO_H*0.68);
+            // arrugas camiseta por barriga
+            ctx.strokeStyle = SHIRT_D; ctx.lineWidth = 1.0; ctx.lineCap='round'; ctx.globalAlpha=0.35;
+            ctx.beginPath(); ctx.moveTo(-TORSO_W*0.05, -TORSO_H*0.12); ctx.quadraticCurveTo(TORSO_W*0.40, -TORSO_H*0.08, TORSO_W*0.55, -TORSO_H*0.18); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-TORSO_W*0.10, -TORSO_H*0.22); ctx.quadraticCurveTo(TORSO_W*0.35, -TORSO_H*0.16, TORSO_W*0.52, -TORSO_H*0.28); ctx.stroke();
+            ctx.globalAlpha=1;
+            ctx.restore();
+            const armLen = h * 0.21, foreLen = h * 0.19, armThick = w * 0.115;
+            const drawArm = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save(); ctx.translate(isBack ? w*0.05 : 0, SHOULDER_Y); ctx.rotate(currentBodyLean);
+                ctx.rotate(-phase*0.65 + 0.28);
+                const mg = ctx.createLinearGradient(-armThick*0.5, 0, armThick*0.5, armLen*0.5);
+                mg.addColorStop(0, isBack ? SHIRT_D : SHIRT); mg.addColorStop(1, isBack ? SHIRT : SHIRT_L);
+                ctx.fillStyle = mg;
+                ctx.beginPath();
+                ctx.moveTo(-armThick*0.52, 0); ctx.lineTo(armThick*0.52, 0);
+                ctx.lineTo(armThick*0.44, armLen*0.5); ctx.lineTo(-armThick*0.44, armLen*0.5);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, armLen*0.5);
+                let eb = 0.35; if (phase < 0) eb += Math.abs(phase)*0.65; ctx.rotate(eb);
+                const fa = ctx.createLinearGradient(-armThick*0.45, 0, armThick*0.45, foreLen);
+                fa.addColorStop(0, SKIN); fa.addColorStop(1, SKIN_D); ctx.fillStyle = fa;
+                ctx.beginPath();
+                ctx.moveTo(-armThick*0.48, 0); ctx.lineTo(armThick*0.48, 0);
+                ctx.lineTo(armThick*0.36, foreLen*0.9); ctx.lineTo(-armThick*0.36, foreLen*0.9);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(0, foreLen*0.9, armThick*0.42, armThick*0.34, 0.3, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            };
+            ctx.save(); ctx.globalAlpha = 0.72; drawArm(true); ctx.restore();
+            drawLeg(false);
+            // CABEZA - Hombre mayor, pelo negro, barba y gafas
+            ctx.save(); ctx.translate(w*0.06, HEAD_Y); ctx.rotate(currentBodyLean * 0.5);
+            // cuello
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.roundRect(-HEAD_R*0.30, 0, HEAD_R*0.60, HEAD_R*0.52, 3); ctx.fill();
+            const hCy = -HEAD_R * 0.52;
+            // cara más redonda/llena (mayor)
+            const faceGrad = ctx.createRadialGradient(HEAD_R*0.1, hCy-HEAD_R*0.15, 2, 0, hCy, HEAD_R*1.1);
+            faceGrad.addColorStop(0, SKIN_HL); faceGrad.addColorStop(0.6, SKIN); faceGrad.addColorStop(1, SKIN_D);
+            ctx.fillStyle = faceGrad;
+            ctx.beginPath(); ctx.ellipse(0, hCy, HEAD_R*1.0, HEAD_R*1.05, 0.05, 0, Math.PI*2); ctx.fill();
+            // mejilla más regordeta
+            ctx.fillStyle = 'rgba(220,160,120,0.5)';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.72, hCy+HEAD_R*0.28, HEAD_R*0.35, HEAD_R*0.26, 0.2, 0, Math.PI*2); ctx.fill();
+            // oreja
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.88, hCy+HEAD_R*0.08, HEAD_R*0.20, HEAD_R*0.28, 0, 0, Math.PI*2); ctx.fill();
+            // patas de gallo / arrugas ojos
+            ctx.strokeStyle = 'rgba(160,100,70,0.45)'; ctx.lineWidth = 0.9; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.52, hCy-HEAD_R*0.15); ctx.lineTo(HEAD_R*0.70, hCy-HEAD_R*0.26); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.52, hCy-HEAD_R*0.10); ctx.lineTo(HEAD_R*0.72, hCy-HEAD_R*0.08); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.52, hCy-HEAD_R*0.04); ctx.lineTo(HEAD_R*0.70, hCy+HEAD_R*0.04); ctx.stroke();
+            // arruga frente
+            ctx.beginPath(); ctx.moveTo(-HEAD_R*0.1, hCy-HEAD_R*0.45); ctx.quadraticCurveTo(HEAD_R*0.2, hCy-HEAD_R*0.55, HEAD_R*0.5, hCy-HEAD_R*0.44); ctx.stroke();
+            // ojo
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.27, hCy-HEAD_R*0.10, HEAD_R*0.22, HEAD_R*0.14, 0.05, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#4a3000';
+            ctx.beginPath(); ctx.arc(HEAD_R*0.34, hCy-HEAD_R*0.10, HEAD_R*0.10, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(HEAD_R*0.38, hCy-HEAD_R*0.14, HEAD_R*0.035, 0, Math.PI*2); ctx.fill();
+            // ceja negra y gruesa
+            ctx.strokeStyle = HAIR; ctx.lineWidth = HEAD_R*0.16; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.08, hCy-HEAD_R*0.28); ctx.quadraticCurveTo(HEAD_R*0.30, hCy-HEAD_R*0.34, HEAD_R*0.52, hCy-HEAD_R*0.25); ctx.stroke();
+            // nariz
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.86, hCy+HEAD_R*0.06, HEAD_R*0.15, HEAD_R*0.11, 0.4, 0, Math.PI*2); ctx.fill();
+            // GAFAS negras de pasta
+            const gx = HEAD_R*0.28, gy = hCy-HEAD_R*0.12, gr = HEAD_R*0.30;
+            ctx.fillStyle = 'rgba(180,210,255,0.25)';
+            ctx.beginPath(); ctx.ellipse(gx, gy, gr*0.96, gr*0.74, 0, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#111111'; ctx.lineWidth = HEAD_R*0.11; ctx.lineCap='round';
+            ctx.beginPath(); ctx.ellipse(gx, gy, gr, gr*0.78, 0, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(gx + gr*0.9, gy - HEAD_R*0.04); ctx.lineTo(gx + gr*1.4, gy - HEAD_R*0.04); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(gx - gr*1.0, gy); ctx.quadraticCurveTo(gx - gr*1.4, gy + HEAD_R*0.05, gx - gr*1.6, gy + HEAD_R*0.18); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.50)'; ctx.lineWidth = HEAD_R*0.05;
+            ctx.beginPath(); ctx.moveTo(gx - gr*0.5, gy - gr*0.36); ctx.quadraticCurveTo(gx - gr*0.1, gy - gr*0.52, gx + gr*0.28, gy - gr*0.40); ctx.stroke();
+            // BARBA CORTA Y BIEN DEFINIDA
+            ctx.save();
+            // Zona de barba: definimos el contorno de la mandíbula con clip
+            const beardPath = () => {
+                ctx.beginPath();
+                // contorno inferior de la cara siguiendo la mandíbula
+                ctx.moveTo(-HEAD_R*0.78, hCy+HEAD_R*0.18);
+                ctx.bezierCurveTo(-HEAD_R*0.85, hCy+HEAD_R*0.55, -HEAD_R*0.50, hCy+HEAD_R*1.05, HEAD_R*0.00, hCy+HEAD_R*1.12);
+                ctx.bezierCurveTo(HEAD_R*0.55, hCy+HEAD_R*1.05, HEAD_R*0.92, hCy+HEAD_R*0.55, HEAD_R*0.90, hCy+HEAD_R*0.18);
+                ctx.bezierCurveTo(HEAD_R*0.70, hCy+HEAD_R*0.08, HEAD_R*0.42, hCy+HEAD_R*0.18, HEAD_R*0.62, hCy+HEAD_R*0.22);
+                ctx.bezierCurveTo(HEAD_R*0.45, hCy+HEAD_R*0.28, HEAD_R*0.20, hCy+HEAD_R*0.26, HEAD_R*0.00, hCy+HEAD_R*0.24);
+                ctx.bezierCurveTo(-HEAD_R*0.20, hCy+HEAD_R*0.26, -HEAD_R*0.45, hCy+HEAD_R*0.28, -HEAD_R*0.62, hCy+HEAD_R*0.22);
+                ctx.bezierCurveTo(-HEAD_R*0.42, hCy+HEAD_R*0.18, -HEAD_R*0.70, hCy+HEAD_R*0.08, -HEAD_R*0.78, hCy+HEAD_R*0.18);
+                ctx.closePath();
+            };
+            // Sombra suave de barba (stubble)
+            beardPath();
+            ctx.clip();
+            // base oscura de barba
+            const beardGrad = ctx.createLinearGradient(0, hCy+HEAD_R*0.20, 0, hCy+HEAD_R*1.10);
+            beardGrad.addColorStop(0, 'rgba(15,10,10,0.55)');
+            beardGrad.addColorStop(0.4, 'rgba(20,15,15,0.85)');
+            beardGrad.addColorStop(1, 'rgba(10,8,8,0.92)');
+            ctx.fillStyle = beardGrad;
+            ctx.fillRect(-HEAD_R*1.0, hCy+HEAD_R*0.15, HEAD_R*2.0, HEAD_R*1.10);
+            // textura barba: puntos pequeños
+            ctx.fillStyle = 'rgba(0,0,0,0.18)';
+            const beardDots = [
+                [0.05,0.35],[0.22,0.38],[0.40,0.32],[0.56,0.30],[-0.10,0.38],[-0.28,0.34],[-0.44,0.30],
+                [0.12,0.52],[0.30,0.55],[0.48,0.50],[0.62,0.45],[-0.05,0.55],[-0.22,0.52],[-0.40,0.48],
+                [0.08,0.70],[0.26,0.74],[0.44,0.70],[0.58,0.62],[-0.10,0.70],[-0.28,0.68],[-0.44,0.62],
+                [0.18,0.88],[0.36,0.92],[0.52,0.84],[-0.00,0.90],[-0.18,0.88],[-0.34,0.80],
+            ];
+            beardDots.forEach(function(d) {
+                ctx.beginPath(); ctx.arc(HEAD_R*d[0], hCy+HEAD_R*d[1], HEAD_R*0.045, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.restore();
+            // contorno nítido del borde de barba (fade edge)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(15,10,10,0.22)'; ctx.lineWidth = HEAD_R*0.22; ctx.lineCap='round';
+            ctx.beginPath();
+            ctx.moveTo(-HEAD_R*0.75, hCy+HEAD_R*0.20);
+            ctx.bezierCurveTo(-HEAD_R*0.78, hCy+HEAD_R*0.08, -HEAD_R*0.55, hCy+HEAD_R*0.14, -HEAD_R*0.60, hCy+HEAD_R*0.22);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(HEAD_R*0.88, hCy+HEAD_R*0.20);
+            ctx.bezierCurveTo(HEAD_R*0.82, hCy+HEAD_R*0.08, HEAD_R*0.60, hCy+HEAD_R*0.14, HEAD_R*0.65, hCy+HEAD_R*0.22);
+            ctx.stroke();
+            ctx.restore();
+            // BIGOTE bien definido
+            ctx.save();
+            ctx.fillStyle = 'rgba(12,8,8,0.92)';
+            ctx.beginPath();
+            ctx.moveTo(HEAD_R*0.35, hCy+HEAD_R*0.20);
+            ctx.bezierCurveTo(HEAD_R*0.40, hCy+HEAD_R*0.14, HEAD_R*0.58, hCy+HEAD_R*0.12, HEAD_R*0.72, hCy+HEAD_R*0.20);
+            ctx.bezierCurveTo(HEAD_R*0.65, hCy+HEAD_R*0.32, HEAD_R*0.50, hCy+HEAD_R*0.30, HEAD_R*0.38, hCy+HEAD_R*0.26);
+            ctx.closePath(); ctx.fill();
+            // mitad izquierda bigote
+            ctx.beginPath();
+            ctx.moveTo(HEAD_R*0.35, hCy+HEAD_R*0.20);
+            ctx.bezierCurveTo(HEAD_R*0.28, hCy+HEAD_R*0.14, HEAD_R*0.12, hCy+HEAD_R*0.12, HEAD_R*0.05, hCy+HEAD_R*0.20);
+            ctx.bezierCurveTo(HEAD_R*0.12, hCy+HEAD_R*0.32, HEAD_R*0.28, hCy+HEAD_R*0.30, HEAD_R*0.38, hCy+HEAD_R*0.26);
+            ctx.closePath(); ctx.fill();
+            ctx.restore();
+            // boca (visible bajo bigote)
+            ctx.strokeStyle = 'rgba(90,40,40,0.7)'; ctx.lineWidth = HEAD_R*0.07; ctx.lineCap='round';
+            if (player.isSmiling) {
+                ctx.beginPath(); ctx.moveTo(HEAD_R*0.38, hCy+HEAD_R*0.30); ctx.quadraticCurveTo(HEAD_R*0.60, hCy+HEAD_R*0.44, HEAD_R*0.80, hCy+HEAD_R*0.30); ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.moveTo(HEAD_R*0.38, hCy+HEAD_R*0.34); ctx.lineTo(HEAD_R*0.78, hCy+HEAD_R*0.30); ctx.stroke();
+            }
+            // PELO NEGRO - con entradas ligeras
+            ctx.fillStyle = HAIR;
+            ctx.beginPath(); ctx.arc(-HEAD_R*0.06, hCy-HEAD_R*0.90, HEAD_R*0.72, Math.PI*1.0, Math.PI*0.05); ctx.fill();
+            ctx.fillStyle = faceGrad;
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.56, hCy-HEAD_R*0.88, HEAD_R*0.19, HEAD_R*0.20, -0.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.26, hCy-HEAD_R*0.90, HEAD_R*0.13, HEAD_R*0.17, 0.4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = HAIR;
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.82, hCy-HEAD_R*0.45, HEAD_R*0.24, HEAD_R*0.60, -0.15, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.66, hCy-HEAD_R*0.52, HEAD_R*0.18, HEAD_R*0.30, 0.2, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(80,80,80,0.35)';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.06, hCy-HEAD_R*1.04, HEAD_R*0.26, HEAD_R*0.09, 0.3, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            drawArm(false);
+            ctx.restore();
+        };
+        const drawAlba = (ctx, x, y, w, h, frame) => { /* ALBA - Chica joven risueña, pelo largo, ama el rosa */
+            ctx.save();
+            ctx.translate(x + w * 0.5, y + h);
+            const t = frame * 1.9;
+            const runCycle = Math.sin(t * 0.5);
+            const runCycleCos = Math.cos(t * 0.5);
+            const runCycle2 = Math.sin(t * 1.0);
+            let currentBodyLean = -0.17 + runCycle2 * 0.05;
+            if (!player.grounded) currentBodyLean = -0.07;
+            const bodyBob = Math.abs(runCycleCos) * h * 0.05;
+            const HEAD_R = h * 0.12;
+            const TORSO_H = h * 0.30;
+            const TORSO_W = w * 0.30;
+            const WAIST_Y = -(h * 0.44) + bodyBob;
+            const HIP_Y = WAIST_Y + h * 0.03;
+            const SHOULDER_Y = WAIST_Y - TORSO_H * 0.95;
+            const HEAD_Y = SHOULDER_Y - h * 0.15;
+            const SKIN = '#FFD8B0', SKIN_D = '#F0B882', SKIN_HL = '#FFEEDD';
+            const SHIRT = '#FF1493', SHIRT_L = '#FF69B4', SHIRT_D = '#CC0070';     // rosa intenso
+            const SHORT = '#FFB3D9', SHORT_D = '#FF80C0';                            // rosa claro
+            const SHOE_W = '#FFD6EC', SHOE_S = '#FF1493', SHOE_D = '#FFAAD4';       // zapatos rosa
+            const SOCK = '#FFFFFF';
+            const HAIR = '#C07838'; // pelo castaño cálido
+            const HAIR_L = '#D89048'; // reflejos claros
+            if (player.grounded) {
+                ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle = '#FF69B4';
+                ctx.beginPath(); ctx.ellipse(0, -2, w*0.48*(1+Math.abs(runCycle)*0.15), 5, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            }
+            const thighLen = h * 0.25, shinLen = h * 0.23, legThick = w * 0.12;
+            const drawLeg = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save();
+                ctx.translate(isBack ? w*0.04 : 0, HIP_Y);
+                ctx.rotate(currentBodyLean);
+                ctx.rotate(phase * 0.65 + runCycle2 * 0.18);
+                const sg = ctx.createLinearGradient(-legThick*0.6, 0, legThick*0.6, thighLen*0.55);
+                sg.addColorStop(0, isBack ? SHORT_D : SHORT);
+                sg.addColorStop(1, isBack ? '#E060A0' : SHORT_D);
+                ctx.fillStyle = sg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick*0.55, 0); ctx.lineTo(legThick*0.55, 0);
+                ctx.lineTo(legThick*0.45, thighLen*0.55); ctx.lineTo(-legThick*0.45, thighLen*0.55);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, thighLen*0.55);
+                let kb = 0.18; if (phase > 0) kb += phase * 1.3; if (phase < -0.5) kb *= 0.5;
+                ctx.rotate(kb);
+                const shg = ctx.createLinearGradient(-legThick*0.5, 0, legThick*0.5, shinLen);
+                shg.addColorStop(0, SKIN); shg.addColorStop(1, SKIN_D); ctx.fillStyle = shg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick*0.5, 0); ctx.lineTo(legThick*0.5, 0);
+                ctx.lineTo(legThick*0.38, shinLen*0.82); ctx.lineTo(-legThick*0.38, shinLen*0.82);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, shinLen*0.82);
+                ctx.fillStyle = SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.40, 0, legThick*0.80, shinLen*0.14, 3); ctx.fill();
+                ctx.translate(0, shinLen*0.12);
+                const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1;
+                ctx.fillStyle = SHOE_D; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08, sH*0.65, sLen*1.05, sH*0.32, 4); ctx.fill();
+                const shoeGrad = ctx.createLinearGradient(sOff, 0, sOff+sLen, sH);
+                shoeGrad.addColorStop(0, SHOE_W); shoeGrad.addColorStop(1, SHOE_D); ctx.fillStyle = shoeGrad;
+                ctx.beginPath();
+                ctx.moveTo(sOff, sH*0.65); ctx.lineTo(sOff+sLen*0.85, sH*0.65);
+                ctx.bezierCurveTo(sOff+sLen*1.05, sH*0.65, sOff+sLen*1.05, sH*0.15, sOff+sLen*0.80, sH*0.1);
+                ctx.lineTo(sOff+sLen*0.35, 0); ctx.bezierCurveTo(sOff+sLen*0.1, -sH*0.05, sOff-sLen*0.05, sH*0.2, sOff, sH*0.65);
+                ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = SHOE_S; ctx.lineWidth = sH*0.22; ctx.lineCap='round';
+                ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28, sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55, sH*0.1, sOff+sLen*0.75, sH*0.12, sOff+sLen*0.82, sH*0.3); ctx.stroke();
+                ctx.lineCap='butt'; ctx.restore();
+            };
+            // PELO LARGO - se dibuja primero (detrás del cuerpo)
+            const hairSwing = Math.sin(t * 0.8) * 0.18;
+            ctx.save(); ctx.translate(w*0.05, HEAD_Y); ctx.rotate(currentBodyLean * 0.4);
+            const hCy = -HEAD_R * 0.5;
+            // pelo largo que cae por detrás y se mueve
+            ctx.strokeStyle = HAIR; ctx.lineCap='round';
+            // mechón principal largo
+            ctx.lineWidth = HEAD_R * 0.42;
+            ctx.beginPath();
+            ctx.moveTo(-HEAD_R*0.5, hCy - HEAD_R*0.8);
+            ctx.quadraticCurveTo(-HEAD_R*0.9 + hairSwing*2, hCy + HEAD_R*0.5,
+                                  -HEAD_R*1.2 + hairSwing*3, hCy + h*0.38);
+            ctx.stroke();
+            // mechón secundario
+            ctx.lineWidth = HEAD_R * 0.32;
+            ctx.beginPath();
+            ctx.moveTo(-HEAD_R*0.2, hCy - HEAD_R*0.9);
+            ctx.quadraticCurveTo(-HEAD_R*0.6 + hairSwing*1.5, hCy + HEAD_R*0.8,
+                                  -HEAD_R*0.9 + hairSwing*2.5, hCy + h*0.42);
+            ctx.stroke();
+            // mechón trasero
+            ctx.lineWidth = HEAD_R * 0.28;
+            ctx.beginPath();
+            ctx.moveTo(-HEAD_R*0.8, hCy - HEAD_R*0.5);
+            ctx.quadraticCurveTo(-HEAD_R*1.3 + hairSwing*2, hCy + HEAD_R*0.6,
+                                  -HEAD_R*1.6 + hairSwing*3.5, hCy + h*0.35);
+            ctx.stroke();
+            // reflejos en el pelo
+            ctx.strokeStyle = HAIR_L; ctx.lineWidth = HEAD_R * 0.12;
+            ctx.beginPath();
+            ctx.moveTo(-HEAD_R*0.55, hCy - HEAD_R*0.75);
+            ctx.quadraticCurveTo(-HEAD_R*0.85 + hairSwing*1.5, hCy + HEAD_R*0.4, -HEAD_R*1.1 + hairSwing*2.5, hCy + h*0.25);
+            ctx.stroke();
+            ctx.restore();
+            ctx.save(); ctx.globalAlpha = 0.78; drawLeg(true); ctx.restore();
+            // TORSO ROSA
+            ctx.save(); ctx.translate(0, WAIST_Y); ctx.rotate(currentBodyLean);
+            ctx.fillStyle = SHORT;
+            ctx.beginPath(); ctx.roundRect(-TORSO_W*0.7, -4, TORSO_W*1.4, 14, 4); ctx.fill();
+            const tg = ctx.createLinearGradient(-TORSO_W*0.6, 0, TORSO_W*0.6, -TORSO_H);
+            tg.addColorStop(0, SHIRT_D); tg.addColorStop(0.4, SHIRT); tg.addColorStop(1, SHIRT_L);
+            ctx.fillStyle = tg;
+            ctx.beginPath();
+            ctx.moveTo(-TORSO_W*0.60, 0); ctx.lineTo(TORSO_W*0.60, 0);
+            ctx.lineTo(TORSO_W*0.65, -TORSO_H); ctx.lineTo(-TORSO_W*0.55, -TORSO_H);
+            ctx.closePath(); ctx.fill();
+            // brillo camiseta
+            ctx.fillStyle = 'rgba(255,255,255,0.30)';
+            ctx.beginPath(); ctx.moveTo(TORSO_W*0.30, 0); ctx.lineTo(TORSO_W*0.60, 0); ctx.lineTo(TORSO_W*0.65, -TORSO_H); ctx.lineTo(TORSO_W*0.36, -TORSO_H); ctx.closePath(); ctx.fill();
+            // corazón pequeño en la camiseta
+            const hx = -TORSO_W*0.2, hy = -TORSO_H*0.55, hs = TORSO_H*0.14;
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.beginPath();
+            ctx.moveTo(hx, hy + hs*0.3);
+            ctx.bezierCurveTo(hx, hy, hx - hs*0.7, hy, hx - hs*0.7, hy + hs*0.3);
+            ctx.bezierCurveTo(hx - hs*0.7, hy + hs*0.6, hx, hy + hs*0.85, hx, hy + hs);
+            ctx.bezierCurveTo(hx, hy + hs*0.85, hx + hs*0.7, hy + hs*0.6, hx + hs*0.7, hy + hs*0.3);
+            ctx.bezierCurveTo(hx + hs*0.7, hy, hx, hy, hx, hy + hs*0.3);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.92)';
+            ctx.beginPath(); ctx.roundRect(-TORSO_W*0.26, -TORSO_H*0.85, TORSO_W*0.52, TORSO_H*0.35, 3); ctx.fill();
+            ctx.fillStyle = SHIRT_D; ctx.font = `bold ${Math.round(TORSO_H*0.28)}px Arial`;
+            ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('A', 0, -TORSO_H*0.68);
+            ctx.restore();
+            const armLen = h * 0.22, foreLen = h * 0.20, armThick = w * 0.10;
+            const drawArm = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save(); ctx.translate(isBack ? w*0.04 : 0, SHOULDER_Y); ctx.rotate(currentBodyLean);
+                ctx.rotate(-phase*0.80 + 0.28);
+                const mg = ctx.createLinearGradient(-armThick*0.5, 0, armThick*0.5, armLen*0.5);
+                mg.addColorStop(0, isBack ? SHIRT_D : SHIRT); mg.addColorStop(1, isBack ? SHIRT : SHIRT_L);
+                ctx.fillStyle = mg;
+                ctx.beginPath();
+                ctx.moveTo(-armThick*0.5, 0); ctx.lineTo(armThick*0.5, 0);
+                ctx.lineTo(armThick*0.40, armLen*0.5); ctx.lineTo(-armThick*0.40, armLen*0.5);
+                ctx.closePath(); ctx.fill();
+                ctx.translate(0, armLen*0.5);
+                let eb = 0.45; if (phase < 0) eb += Math.abs(phase)*0.8; ctx.rotate(eb);
+                const fa = ctx.createLinearGradient(-armThick*0.45, 0, armThick*0.45, foreLen);
+                fa.addColorStop(0, SKIN); fa.addColorStop(1, SKIN_D); ctx.fillStyle = fa;
+                ctx.beginPath();
+                ctx.moveTo(-armThick*0.45, 0); ctx.lineTo(armThick*0.45, 0);
+                ctx.lineTo(armThick*0.32, foreLen*0.9); ctx.lineTo(-armThick*0.32, foreLen*0.9);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = SKIN; ctx.beginPath(); ctx.ellipse(0, foreLen*0.9, armThick*0.38, armThick*0.32, 0.3, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            };
+            ctx.save(); ctx.globalAlpha = 0.72; drawArm(true); ctx.restore();
+            drawLeg(false);
+            // CABEZA - cara alegre, ojos expresivos
+            ctx.save(); ctx.translate(w*0.05, HEAD_Y); ctx.rotate(currentBodyLean * 0.4);
+            const hCy2 = -HEAD_R * 0.5;
+            // cuello
+            ctx.fillStyle = SKIN_D; ctx.beginPath(); ctx.roundRect(-HEAD_R*0.26, 0, HEAD_R*0.52, HEAD_R*0.52, 3); ctx.fill();
+            // cara
+            const faceGrad = ctx.createRadialGradient(HEAD_R*0.15, hCy2-HEAD_R*0.15, 1, 0, hCy2, HEAD_R*1.05);
+            faceGrad.addColorStop(0, SKIN_HL); faceGrad.addColorStop(0.55, SKIN); faceGrad.addColorStop(1, SKIN_D);
+            ctx.fillStyle = faceGrad;
+            ctx.beginPath(); ctx.ellipse(0, hCy2, HEAD_R*0.94, HEAD_R, 0.06, 0, Math.PI*2); ctx.fill();
+            // oreja
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.82, hCy2+HEAD_R*0.08, HEAD_R*0.18, HEAD_R*0.25, 0, 0, Math.PI*2); ctx.fill();
+            // pendiente dorado
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath(); ctx.arc(-HEAD_R*0.82, hCy2+HEAD_R*0.30, HEAD_R*0.09, 0, Math.PI*2); ctx.fill();
+            // RUBOR en mejillas (risueña)
+            ctx.fillStyle = 'rgba(255,120,160,0.32)';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.62, hCy2+HEAD_R*0.30, HEAD_R*0.28, HEAD_R*0.14, 0.1, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.50, hCy2+HEAD_R*0.26, HEAD_R*0.22, HEAD_R*0.11, -0.1, 0, Math.PI*2); ctx.fill();
+            // ojo grande y expresivo
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.28, hCy2-HEAD_R*0.12, HEAD_R*0.25, HEAD_R*0.17, 0.08, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#1a1a6a';
+            ctx.beginPath(); ctx.arc(HEAD_R*0.34, hCy2-HEAD_R*0.12, HEAD_R*0.12, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(HEAD_R*0.40, hCy2-HEAD_R*0.18, HEAD_R*0.05, 0, Math.PI*2); ctx.fill();
+            // pestaña
+            ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = HEAD_R*0.07; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.12, hCy2-HEAD_R*0.22); ctx.bezierCurveTo(HEAD_R*0.22, hCy2-HEAD_R*0.32, HEAD_R*0.42, hCy2-HEAD_R*0.32, HEAD_R*0.52, hCy2-HEAD_R*0.22); ctx.stroke();
+            // ceja fina curva (expresiva)
+            ctx.strokeStyle = HAIR; ctx.lineWidth = HEAD_R*0.10; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(HEAD_R*0.08, hCy2-HEAD_R*0.30); ctx.quadraticCurveTo(HEAD_R*0.28, hCy2-HEAD_R*0.40, HEAD_R*0.52, hCy2-HEAD_R*0.30); ctx.stroke();
+            // nariz pequeña
+            ctx.fillStyle = SKIN_D;
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.82, hCy2+HEAD_R*0.06, HEAD_R*0.12, HEAD_R*0.08, 0.4, 0, Math.PI*2); ctx.fill();
+            // SONRISA GRANDE (siempre sonriendo - Alba es risueña)
+            ctx.strokeStyle = '#cc4477'; ctx.lineWidth = HEAD_R*0.11; ctx.lineCap='round';
+            ctx.beginPath();
+            ctx.moveTo(HEAD_R*0.36, hCy2+HEAD_R*0.28);
+            ctx.quadraticCurveTo(HEAD_R*0.62, hCy2+HEAD_R*0.50, HEAD_R*0.86, hCy2+HEAD_R*0.28);
+            ctx.stroke();
+            // dientes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.61, hCy2+HEAD_R*0.38, HEAD_R*0.20, HEAD_R*0.09, 0, 0, Math.PI*2); ctx.fill();
+            // PELO LARGO en parte frontal/encima de la cabeza
+            ctx.fillStyle = HAIR;
+            ctx.beginPath(); ctx.arc(-HEAD_R*0.06, hCy2-HEAD_R*0.92, HEAD_R*0.72, Math.PI, 0); ctx.fill();
+            // flequillo lateral
+            ctx.beginPath(); ctx.ellipse(-HEAD_R*0.58, hCy2-HEAD_R*0.28, HEAD_R*0.26, HEAD_R*0.60, -0.2, 0, Math.PI*2); ctx.fill();
+            // mechón frente
+            ctx.beginPath(); ctx.moveTo(-HEAD_R*0.55, hCy2-HEAD_R*0.68);
+            ctx.quadraticCurveTo(-HEAD_R*0.15, hCy2-HEAD_R*0.50, HEAD_R*0.25, hCy2-HEAD_R*0.65); ctx.fill();
+            // reflejo en el pelo
+            ctx.fillStyle = HAIR_L;
+            ctx.beginPath(); ctx.ellipse(HEAD_R*0.10, hCy2-HEAD_R*1.05, HEAD_R*0.25, HEAD_R*0.12, 0.4, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            drawArm(false);
+            ctx.restore();
+        };
+        const drawTherian = (ctx, x, y, w, h, frame) => { /* IGUAL QUE EL ORIGINAL */
+            ctx.save(); ctx.translate(x + w * 0.5, y + h); const t = frame * 1.8; const runCycle = Math.sin(t) * 0.5; const runCycleCos = Math.cos(t) * 0.5; const runCycle2 = Math.sin(t) * 1.0; let currentBodyLean = -0.18 + runCycle2 * 0.06; if (!player.grounded) currentBodyLean = -0.08; const bodyBob = Math.abs(runCycleCos) * h * 0.05; const HEADR=h*0.13, TORSOH=h*0.30, TORSOW=w*0.30; const WAISTY=-h*0.44+bodyBob, HIPY=WAISTY+h*0.03; const SHOULDERY=WAISTY-TORSOH*0.95, HEADY=SHOULDERY-h*0.15; const SKIN='#D2956A', SKIND='#A0673A'; const SHIRT='#3D1C02', SHIRTL='#6B3310', SHIRTD='#1A0A00'; const SHORT='#1a1a1a', SHORTD='#0a0a0a'; const SHOEW='#F8F8F8', SHOES='#5D3A1A', SHOED='#3B1F0A'; const SOCK='#EEEEEE', FUR='#8B4513', FURD='#5C2D0A'; const thighLen=h*0.25, shinLen=h*0.23, legThick=w*0.13; const drawLeg = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack ? w*0.04 : 0, HIPY); ctx.rotate(currentBodyLean); ctx.rotate(phase*0.65 + runCycle2*0.18); const sg=ctx.createLinearGradient(-legThick*0.6,0,legThick*0.6,thighLen*0.55); sg.addColorStop(0, isBack?SHORTD:SHORT); sg.addColorStop(1, isBack?'#050505':SHORTD); ctx.fillStyle=sg; ctx.beginPath(); ctx.moveTo(-legThick*0.55,0); ctx.lineTo(legThick*0.55,0); ctx.lineTo(legThick*0.45,thighLen*0.55); ctx.lineTo(-legThick*0.45,thighLen*0.55); ctx.closePath(); ctx.fill(); ctx.translate(0,thighLen*0.55); let kb=0.18; if(phase>0) kb=phase*1.3; if(phase<-0.5) kb=0.5; ctx.rotate(kb); const shg=ctx.createLinearGradient(-legThick*0.5,0,legThick*0.5,shinLen); shg.addColorStop(0,FUR); shg.addColorStop(1,FURD); ctx.fillStyle=shg; ctx.beginPath(); ctx.moveTo(-legThick*0.5,0); ctx.lineTo(legThick*0.5,0); ctx.lineTo(legThick*0.38,shinLen*0.82); ctx.lineTo(-legThick*0.38,shinLen*0.82); ctx.closePath(); ctx.fill(); ctx.translate(0,shinLen*0.82); ctx.fillStyle=SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.4,0,legThick*0.8,shinLen*0.14,3); ctx.fill(); ctx.translate(0,shinLen*0.12); const sLen=legThick*2.2,sH=legThick*0.75,sOff=isBack?-legThick*0.2:legThick*0.1; ctx.fillStyle='#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08,sH*0.65,sLen*1.05,sH*0.32,4); ctx.fill(); const sg2=ctx.createLinearGradient(sOff,0,sOff+sLen,sH); sg2.addColorStop(0,SHOEW); sg2.addColorStop(1,SHOED); ctx.fillStyle=sg2; ctx.beginPath(); ctx.moveTo(sOff,sH*0.65); ctx.lineTo(sOff+sLen*0.85,sH*0.65); ctx.bezierCurveTo(sOff+sLen*1.05,sH*0.65,sOff+sLen*1.05,sH*0.15,sOff+sLen*0.80,sH*0.1); ctx.lineTo(sOff+sLen*0.35,0); ctx.bezierCurveTo(sOff+sLen*0.1,-sH*0.05,sOff-sLen*0.05,sH*0.2,sOff,sH*0.65); ctx.closePath(); ctx.fill(); ctx.strokeStyle=SHOES; ctx.lineWidth=sH*0.22; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28,sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55,sH*0.1,sOff+sLen*0.75,sH*0.12,sOff+sLen*0.82,sH*0.3); ctx.stroke(); ctx.lineCap='butt'; ctx.restore(); }; if(player.grounded){ ctx.save(); ctx.globalAlpha=0.18; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(0,-2,w*0.48+Math.abs(runCycle)*0.15,6,0,0,Math.PI*2); ctx.fill(); ctx.restore(); } ctx.save(); ctx.globalAlpha=0.78; drawLeg(true); ctx.restore(); ctx.save(); ctx.translate(-w*0.18, WAISTY); ctx.rotate(currentBodyLean); const tailWag = Math.sin(t*1.5)*0.55; ctx.rotate(-0.3 + tailWag); ctx.strokeStyle=FUR; ctx.lineWidth=w*0.09; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-w*0.15,-h*0.18,-w*0.05,-h*0.28); ctx.stroke(); ctx.strokeStyle='#D2956A'; ctx.lineWidth=w*0.05; ctx.beginPath(); ctx.moveTo(-w*0.08,-h*0.20); ctx.quadraticCurveTo(-w*0.14,-h*0.22,-w*0.05,-h*0.28); ctx.stroke(); ctx.restore(); ctx.save(); ctx.translate(0,WAISTY); ctx.rotate(currentBodyLean); ctx.fillStyle=SHORT; ctx.beginPath(); ctx.roundRect(-TORSOW*0.7,-4,TORSOW*1.4,14,4); ctx.fill(); const tg=ctx.createLinearGradient(-TORSOW*0.6,0,TORSOW*0.6,-TORSOH); tg.addColorStop(0,SHIRTD); tg.addColorStop(0.4,SHIRT); tg.addColorStop(1,SHIRTL); ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-TORSOW*0.6,0); ctx.lineTo(TORSOW*0.6,0); ctx.lineTo(TORSOW*0.65,-TORSOH); ctx.lineTo(-TORSOW*0.55,-TORSOH); ctx.closePath(); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.roundRect(-TORSOW*0.28,-TORSOH*0.72,TORSOW*0.56,TORSOH*0.38,3); ctx.fill(); ctx.fillStyle=SHIRTD; ctx.font=`bold ${Math.round(TORSOH*0.28)}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('T',0,-TORSOH*0.53); ctx.restore(); const armLen=h*0.22, foreLen=h*0.20, armThick=w*0.10; const drawArm = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack?w*0.04:0, SHOULDERY); ctx.rotate(currentBodyLean); ctx.rotate(-phase*0.8+0.3); const mg=ctx.createLinearGradient(-armThick*0.5,0,armThick*0.5,armLen*0.5); mg.addColorStop(0,isBack?SHIRTD:SHIRT); mg.addColorStop(1,isBack?SHIRT:SHIRTL); ctx.fillStyle=mg; ctx.beginPath(); ctx.moveTo(-armThick*0.5,0); ctx.lineTo(armThick*0.5,0); ctx.lineTo(armThick*0.4,armLen*0.5); ctx.lineTo(-armThick*0.4,armLen*0.5); ctx.closePath(); ctx.fill(); ctx.translate(0,armLen*0.5); let eb=0.45; if(phase>0) eb=Math.abs(phase*0.8); ctx.rotate(eb); const fa=ctx.createLinearGradient(-armThick*0.45,0,armThick*0.45,foreLen); fa.addColorStop(0,FUR); fa.addColorStop(1,FURD); ctx.fillStyle=fa; ctx.beginPath(); ctx.moveTo(-armThick*0.45,0); ctx.lineTo(armThick*0.45,0); ctx.lineTo(armThick*0.32,foreLen*0.9); ctx.lineTo(-armThick*0.32,foreLen*0.9); ctx.closePath(); ctx.fill(); ctx.fillStyle=FURD; ctx.beginPath(); ctx.ellipse(0,foreLen*0.9,armThick*0.40,armThick*0.35,0.3,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#1a0a00'; for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.ellipse(i*armThick*0.22,foreLen*1.0,armThick*0.08,armThick*0.13,0,0,Math.PI*2); ctx.fill(); } ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.72; drawArm(true); ctx.restore(); drawLeg(false); ctx.save(); ctx.translate(w*0.05, HEADY); ctx.rotate(currentBodyLean*0.4); ctx.fillStyle=FUR; ctx.beginPath(); ctx.ellipse(-HEADR*0.45,-HEADR*1.05,HEADR*0.32,HEADR*0.52,-0.35,0,Math.PI*2); ctx.fill(); ctx.fillStyle=FURD; ctx.beginPath(); ctx.ellipse(-HEADR*0.45,-HEADR*1.05,HEADR*0.18,HEADR*0.36,-0.35,0,Math.PI*2); ctx.fill(); ctx.save(); ctx.translate(HEADR*0.28,-HEADR*1.10); ctx.rotate(Math.sin(t*0.9)*0.18); ctx.fillStyle=FUR; ctx.beginPath(); ctx.ellipse(0,0,HEADR*0.28,HEADR*0.48,0.25,0,Math.PI*2); ctx.fill(); ctx.fillStyle=FURD; ctx.beginPath(); ctx.ellipse(0,0,HEADR*0.16,HEADR*0.32,0.25,0,Math.PI*2); ctx.fill(); ctx.restore(); ctx.fillStyle=SKIND; ctx.beginPath(); ctx.roundRect(-HEADR*0.28,0,HEADR*0.56,HEADR*0.55,4); ctx.fill(); const hCy=-HEADR*0.5; const faceGrad=ctx.createRadialGradient(HEADR*0.2,hCy-HEADR*0.2,2,0,hCy,HEADR*1.05); faceGrad.addColorStop(0,SKIN); faceGrad.addColorStop(1,SKIND); ctx.fillStyle=faceGrad; ctx.beginPath(); ctx.ellipse(0,hCy,HEADR*0.95,HEADR,0.08,0,Math.PI*2); ctx.fill(); ctx.fillStyle=FUR; ctx.beginPath(); ctx.ellipse(-HEADR*0.52,hCy,HEADR*0.44,HEADR*0.82,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle=faceGrad; ctx.beginPath(); ctx.ellipse(HEADR*0.1,hCy,HEADR*0.68,HEADR*0.78,0.05,0,Math.PI*2); ctx.fill(); ctx.fillStyle=SKIND; ctx.beginPath(); ctx.ellipse(-HEADR*0.82,hCy+HEADR*0.08,HEADR*0.18,HEADR*0.25,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(HEADR*0.28,hCy-HEADR*0.1,HEADR*0.22,HEADR*0.14,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#1a0800'; ctx.beginPath(); ctx.arc(HEADR*0.38,hCy-HEADR*0.1,HEADR*0.10,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(HEADR*0.42,hCy-HEADR*0.15,HEADR*0.03,0,Math.PI*2); ctx.fill(); ctx.strokeStyle=FURD; ctx.lineWidth=HEADR*0.10; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEADR*0.1,hCy-HEADR*0.28); ctx.quadraticCurveTo(HEADR*0.35,hCy-HEADR*0.36,HEADR*0.56,hCy-HEADR*0.25); ctx.stroke(); const muzzleGrad=ctx.createRadialGradient(HEADR*0.72,hCy+HEADR*0.12,1,HEADR*0.70,hCy+HEADR*0.14,HEADR*0.36); muzzleGrad.addColorStop(0,SKIN); muzzleGrad.addColorStop(1,SKIND); ctx.fillStyle=muzzleGrad; ctx.beginPath(); ctx.ellipse(HEADR*0.70,hCy+HEADR*0.18,HEADR*0.36,HEADR*0.26,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#111'; ctx.beginPath(); ctx.ellipse(HEADR*0.90,hCy+HEADR*0.06,HEADR*0.13,HEADR*0.09,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.ellipse(HEADR*0.84,hCy+HEADR*0.02,HEADR*0.04,HEADR*0.03,0,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#7B3A1A'; ctx.lineWidth=HEADR*0.09; ctx.lineCap='round'; if(player.isSmiling){ ctx.beginPath(); ctx.moveTo(HEADR*0.60,hCy+HEADR*0.28); ctx.quadraticCurveTo(HEADR*0.80,hCy+HEADR*0.44,HEADR*0.94,hCy+HEADR*0.28); ctx.stroke(); ctx.fillStyle='#E8607A'; ctx.beginPath(); ctx.ellipse(HEADR*0.80,hCy+HEADR*0.40,HEADR*0.13,HEADR*0.17,0,0,Math.PI*2); ctx.fill(); } else { ctx.beginPath(); ctx.moveTo(HEADR*0.60,hCy+HEADR*0.30); ctx.lineTo(HEADR*0.94,hCy+HEADR*0.26); ctx.stroke(); } ctx.fillStyle=FURD; ctx.beginPath(); ctx.arc(-HEADR*0.05,hCy-HEADR*1.0,HEADR*0.72,Math.PI,0); ctx.fill(); ctx.fillStyle=FUR; ctx.beginPath(); ctx.arc(-HEADR*0.05,hCy-HEADR*0.95,HEADR*0.60,Math.PI,0); ctx.fill(); ctx.restore(); drawArm(false); ctx.restore();
+        };
+
+        const drawRedBull = (ctx, x, y, w, h, anim) => { /* IGUAL QUE EL ORIGINAL */
+            ctx.save(); const canW = w * 0.68; const canH = h * 1.2; const cx = x + w / 2; const canX = cx - canW / 2; const canY = y - (canH - h) / 2; ctx.save(); ctx.beginPath(); ctx.roundRect(canX, canY + 8, canW, canH - 16, 8); ctx.clip(); const bodyGrad = ctx.createLinearGradient(canX, 0, canX + canW, 0); bodyGrad.addColorStop(0, '#001055'); bodyGrad.addColorStop(0.12, '#002B8F'); bodyGrad.addColorStop(0.28, '#0040C0'); bodyGrad.addColorStop(0.45, '#1A6AE8'); bodyGrad.addColorStop(0.58, '#0050C8'); bodyGrad.addColorStop(0.75, '#003090'); bodyGrad.addColorStop(0.88, '#001A6A'); bodyGrad.addColorStop(1, '#000C40'); ctx.fillStyle = bodyGrad; ctx.fillRect(canX, canY + 8, canW, canH - 16); const stH = canH * 0.16; const stY = canY + 8; const sgT = ctx.createLinearGradient(canX, 0, canX + canW, 0); sgT.addColorStop(0, '#707070'); sgT.addColorStop(0.15,'#B0B0B0'); sgT.addColorStop(0.4, '#E8E8E8'); sgT.addColorStop(0.5, '#F5F5F5'); sgT.addColorStop(0.6, '#E0E0E0'); sgT.addColorStop(0.85,'#B8B8B8'); sgT.addColorStop(1, '#686868'); ctx.fillStyle = sgT; ctx.fillRect(canX, stY, canW, stH); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(0,20,100,0.35)'; ctx.font = 'bold italic ' + Math.round(canH * 0.097) + 'px Georgia, serif'; ctx.fillText('Red Bull', cx + 1, stY + stH * 0.52 + 1); ctx.fillStyle = '#002080'; ctx.fillText('Red Bull', cx, stY + stH * 0.52); const labelY = stY + stH; const sbH = canH * 0.16; const labelH = canH - 16 - stH - sbH; const labelGrad = ctx.createLinearGradient(canX, 0, canX + canW, 0); labelGrad.addColorStop(0, '#001055'); labelGrad.addColorStop(0.12, '#002B8F'); labelGrad.addColorStop(0.28, '#0040C0'); labelGrad.addColorStop(0.45, '#1A6AE8'); labelGrad.addColorStop(0.58, '#0050C8'); labelGrad.addColorStop(0.75, '#003090'); labelGrad.addColorStop(0.88, '#001A6A'); labelGrad.addColorStop(1, '#000C40'); ctx.fillStyle = labelGrad; ctx.fillRect(canX, labelY, canW, labelH); const bullCY = labelY + labelH * 0.44; const sc = canH * 0.038; const drawBull = (bx, by, s, dir) => { ctx.save(); ctx.translate(bx, by); ctx.scale(dir * s, s); ctx.shadowBlur = 5; ctx.shadowColor = '#CC7700'; ctx.fillStyle = '#FFD000'; ctx.beginPath(); ctx.ellipse(0, 0, 3.8, 2.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(-2.8, 0.5, 1.8, 2.0, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(4.0, -0.8, 2.0, 1.8, -0.25, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(5.5, -0.4, 1.0, 0.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#FFD000'; ctx.lineWidth = 0.7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(3.5, -2.2); ctx.quadraticCurveTo(4.8, -4.5, 3.8, -5.5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(5.0, -2.0); ctx.quadraticCurveTo(6.5, -4.2, 6.0, -5.2); ctx.stroke(); ctx.fillStyle = '#1A0800'; ctx.beginPath(); ctx.arc(5.0, -1.1, 0.28, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#FFD000'; ctx.beginPath(); ctx.roundRect(2.5, 1.8, 1.0, 2.8, 0.4); ctx.fill(); ctx.beginPath(); ctx.roundRect(-2.0, 1.8, 1.0, 2.6, 0.4); ctx.fill(); ctx.fillStyle = '#AA8800'; ctx.beginPath(); ctx.roundRect(2.5, 4.0, 1.0, 0.7, 0.2); ctx.fill(); ctx.beginPath(); ctx.roundRect(-2.0, 3.8, 1.0, 0.7, 0.2); ctx.fill(); ctx.strokeStyle = '#FFD000'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(-4.2, -0.5); ctx.quadraticCurveTo(-6.0, -2.0, -5.5, -4.0); ctx.stroke(); ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(-5.5, -4.0); ctx.quadraticCurveTo(-6.5, -5.2, -5.8, -5.8); ctx.stroke(); ctx.shadowBlur = 0; ctx.restore(); }; drawBull(cx - canW * 0.24, bullCY, sc, 1); drawBull(cx + canW * 0.24, bullCY, sc, -1); ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(200,0,0,0.6)'; ctx.fillStyle = '#CC1100'; ctx.beginPath(); ctx.arc(cx, bullCY - labelH * 0.1, canW * 0.09, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#FFD000'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.shadowBlur = 0; ctx.strokeStyle = '#FFD000'; ctx.lineWidth = 0.8; for (let i = 0; i < 8; i++) { const ang = (i / 8) * Math.PI * 2; const r1 = canW * 0.10; const r2 = canW * 0.13; ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * r1, bullCY - labelH * 0.1 + Math.sin(ang) * r1); ctx.lineTo(cx + Math.cos(ang) * r2, bullCY - labelH * 0.1 + Math.sin(ang) * r2); ctx.stroke(); } const sbY = labelY + labelH; const sgB = ctx.createLinearGradient(canX, 0, canX + canW, 0); sgB.addColorStop(0, '#707070'); sgB.addColorStop(0.15,'#B0B0B0'); sgB.addColorStop(0.4, '#E8E8E8'); sgB.addColorStop(0.5, '#F0F0F0'); sgB.addColorStop(0.6, '#E0E0E0'); sgB.addColorStop(0.85,'#B8B8B8'); sgB.addColorStop(1, '#686868'); ctx.fillStyle = sgB; ctx.fillRect(canX, sbY, canW, sbH); ctx.fillStyle = 'rgba(0,30,100,0.3)'; ctx.font = 'bold ' + Math.round(canH * 0.062) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ENERGY DRINK', cx + 1, sbY + sbH * 0.5 + 1); ctx.fillStyle = '#002060'; ctx.fillText('ENERGY DRINK', cx, sbY + sbH * 0.5); const sepGrad = ctx.createLinearGradient(canX, 0, canX + canW, 0); sepGrad.addColorStop(0, 'rgba(100,100,100,0.4)'); sepGrad.addColorStop(0.5, 'rgba(255,255,255,0.9)'); sepGrad.addColorStop(1, 'rgba(100,100,100,0.4)'); ctx.strokeStyle = sepGrad; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(canX, labelY); ctx.lineTo(canX + canW, labelY); ctx.stroke(); ctx.beginPath(); ctx.moveTo(canX, sbY); ctx.lineTo(canX + canW, sbY); ctx.stroke(); const shine1 = ctx.createLinearGradient(canX, 0, canX + canW * 0.3, 0); shine1.addColorStop(0, 'rgba(255,255,255,0)'); shine1.addColorStop(0.4, 'rgba(255,255,255,0.18)'); shine1.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = shine1; ctx.fillRect(canX, labelY, canW * 0.3, labelH); const shine2 = ctx.createLinearGradient(canX + canW * 0.65, 0, canX + canW, 0); shine2.addColorStop(0, 'rgba(255,255,255,0)'); shine2.addColorStop(0.5, 'rgba(255,255,255,0.10)'); shine2.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = shine2; ctx.fillRect(canX + canW * 0.65, labelY, canW * 0.35, labelH); ctx.restore(); ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,0.4)'; const topGrad = ctx.createRadialGradient(cx - canW*0.1, canY + 6, 1, cx, canY + 9, canW * 0.52); topGrad.addColorStop(0, '#F5F5F5'); topGrad.addColorStop(0.35,'#D0D0D0'); topGrad.addColorStop(0.7, '#A8A8A8'); topGrad.addColorStop(1, '#707070'); ctx.fillStyle = topGrad; ctx.beginPath(); ctx.ellipse(cx, canY + 9, canW * 0.49, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#909090'; ctx.lineWidth = 1; ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = '#C8C8C8'; ctx.beginPath(); ctx.roundRect(cx - 5, canY + 1, 10, 9, 3); ctx.fill(); ctx.strokeStyle = '#888'; ctx.lineWidth = 0.8; ctx.stroke(); ctx.strokeStyle = '#707070'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(cx, canY + 4, 3, 2, 0, 0, Math.PI * 2); ctx.stroke(); const botGrad = ctx.createRadialGradient(cx, canY + canH - 9, 1, cx, canY + canH - 9, canW * 0.5); botGrad.addColorStop(0, '#D8D8D8'); botGrad.addColorStop(0.5, '#B0B0B0'); botGrad.addColorStop(1, '#787878'); ctx.fillStyle = botGrad; ctx.beginPath(); ctx.ellipse(cx, canY + canH - 9, canW * 0.47, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#707070'; ctx.lineWidth = 1; ctx.stroke(); ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.roundRect(canX, canY + 8, canW, canH - 16, 8); ctx.stroke(); ctx.restore();
+        };
+
+        const drawBadalonaSign = () => {
+            const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
+
+            // Flicker multi-frecuencia realista de neón
+            const t = gameTime;
+            const flicker = 0.88
+                + Math.sin(t * 0.13) * 0.05
+                + Math.sin(t * 0.47) * 0.04
+                + (Math.random() < 0.015 ? -0.18 : 0); // glitch aleatorio
+            const baseAlpha = 0.62 + nightFactor * 0.38;
+            const glow = Math.max(0.3, Math.min(1, flicker)) * baseAlpha;
+            const glowIntense = glow * (1 + nightFactor * 0.5);
+
+            const cx = GAME_WIDTH * 0.5;
+            // --- Posición más arriba ---
+            const signY = 14;
+            const signW = 560;
+            const signH = 110;
+            const signX = cx - signW / 2;
+            const radius = 10;
+
+            ctx.save();
+
+
+
+            // === HALO DE RESPLANDOR EXTERIOR (neón ambiental) ===
+            ctx.globalAlpha = glowIntense * 0.22;
+            ctx.shadowBlur = 60;
+            ctx.shadowColor = '#FFD700';
+            ctx.fillStyle = 'rgba(255, 200, 0, 0.08)';
+            ctx.beginPath();
+            ctx.roundRect(signX - 20, signY - 20, signW + 40, signH + 40, radius + 10);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // === CUERPO DEL LETRERO ===
+            ctx.globalAlpha = glow * 0.97;
+            // Fondo oscuro con sutil textura degradada
+            const boxGrad = ctx.createLinearGradient(signX, signY, signX, signY + signH);
+            boxGrad.addColorStop(0, '#0c0c1a');
+            boxGrad.addColorStop(0.45, '#07070f');
+            boxGrad.addColorStop(1, '#101020');
+            ctx.fillStyle = boxGrad;
+            ctx.beginPath();
+            ctx.roundRect(signX, signY, signW, signH, radius);
+            ctx.fill();
+
+            // Borde exterior dorado grueso
+            ctx.globalAlpha = glowIntense;
+            ctx.shadowBlur = 12 * glow;
+            ctx.shadowColor = '#FFD700';
+            ctx.strokeStyle = '#b07800';
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.roundRect(signX, signY, signW, signH, radius); ctx.stroke();
+
+            // Borde interior fino brillante
+            ctx.shadowBlur = 20 * glow;
+            ctx.shadowColor = '#FFE566';
+            ctx.strokeStyle = `rgba(255, 220, 60, ${0.7 * glow})`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.roundRect(signX + 5, signY + 5, signW - 10, signH - 10, radius - 2); ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // ================================================================
+            // === TEXTOS CENTRADOS ===
+            // ================================================================
+            ctx.globalAlpha = glowIntense;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // ---- "BADALONA" grande ----
+            ctx.save();
+            ctx.shadowBlur = 26;
+            ctx.shadowColor = '#FFD700';
+            ctx.font = '900 italic 44px Montserrat, sans-serif';
+            ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+            ctx.lineWidth = 6;
+            ctx.strokeText('BADALONA', cx, signY + signH * 0.28);
+            const tg = ctx.createLinearGradient(cx - 180, signY, cx + 180, signY + signH * 0.5);
+            tg.addColorStop(0, '#FFF9C4');
+            tg.addColorStop(0.4, '#FFD700');
+            tg.addColorStop(1, '#E6A800');
+            ctx.fillStyle = tg;
+            ctx.fillText('BADALONA', cx, signY + signH * 0.28);
+            ctx.restore();
+
+            // ---- Línea separadora ----
+            ctx.globalAlpha = glow * 0.55;
+            const sepY = signY + signH * 0.52;
+            const sepGrad = ctx.createLinearGradient(signX + 20, 0, signX + signW - 20, 0);
+            sepGrad.addColorStop(0,   'rgba(200,140,0,0)');
+            sepGrad.addColorStop(0.2, 'rgba(255,215,0,0.8)');
+            sepGrad.addColorStop(0.8, 'rgba(255,215,0,0.8)');
+            sepGrad.addColorStop(1,   'rgba(200,140,0,0)');
+            ctx.strokeStyle = sepGrad;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(signX + 20, sepY); ctx.lineTo(signX + signW - 20, sepY);
+            ctx.stroke();
+
+            // Diamantes decorativos sobre la línea
+            ctx.globalAlpha = glow * 0.8;
+            ctx.fillStyle = '#FFD700';
+            ctx.shadowBlur = 6; ctx.shadowColor = '#FFD700';
+            [-120, -60, 0, 60, 120].forEach(offset => {
+                ctx.save();
+                ctx.translate(cx + offset, sepY);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillRect(-3, -3, 6, 6);
+                ctx.restore();
+            });
+            ctx.shadowBlur = 0;
+
+            // ---- "La lucha de abril" en cursiva elegante ----
+            ctx.globalAlpha = glowIntense * 0.95;
+            ctx.save();
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = '#FF9900';
+            ctx.font = 'italic 700 20px Montserrat, sans-serif';
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 4;
+            ctx.strokeText('La lucha de abril', cx, signY + signH * 0.76);
+            const ag = ctx.createLinearGradient(cx - 150, 0, cx + 150, 0);
+            ag.addColorStop(0, '#FFB830');
+            ag.addColorStop(0.5, '#FFE066');
+            ag.addColorStop(1, '#FF7A00');
+            ctx.fillStyle = ag;
+            ctx.fillText('La lucha de abril', cx, signY + signH * 0.76);
+            ctx.restore();
+
+            // === BRILLO SUPERIOR (reflejo de cristal) ===
+            ctx.globalAlpha = glow * 0.18;
+            const shine = ctx.createLinearGradient(signX + radius, signY, signX + signW - radius, signY);
+            shine.addColorStop(0, 'rgba(255,255,255,0)');
+            shine.addColorStop(0.25, 'rgba(255,255,220,0.8)');
+            shine.addColorStop(0.75, 'rgba(255,255,220,0.4)');
+            shine.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = shine;
+            ctx.fillRect(signX + radius, signY + 2, signW - radius * 2, 7);
+
+            ctx.restore();
+        };
+
+        const drawMountains = () => {
+            const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
+            mountains.forEach(m => {
+                const gw = m.width;
+                const bx = m.x;
+                const by = GAME_HEIGHT - GROUND_HEIGHT - m.height;
+                const bgrad = ctx.createLinearGradient(bx, by, bx + gw, by);
+                if (nightFactor < 0.5) {
+                    bgrad.addColorStop(0, '#7A8FA6'); bgrad.addColorStop(0.5, '#8BA0B4'); bgrad.addColorStop(1, '#6E8299');
+                } else {
+                    bgrad.addColorStop(0, '#1a2535'); bgrad.addColorStop(0.5, '#222d40'); bgrad.addColorStop(1, '#151e2d');
+                }
+                ctx.fillStyle = bgrad;
+                ctx.beginPath();
+                ctx.moveTo(bx, GAME_HEIGHT - GROUND_HEIGHT + 5);
+                ctx.lineTo(bx, by + m.roofH);
+                ctx.lineTo(bx + gw * 0.15, by + m.roofH);
+                ctx.lineTo(bx + gw * 0.15, by);
+                ctx.lineTo(bx + gw * 0.85, by);
+                ctx.lineTo(bx + gw * 0.85, by + m.roofH);
+                ctx.lineTo(bx + gw, by + m.roofH);
+                ctx.lineTo(bx + gw, GAME_HEIGHT - GROUND_HEIGHT + 5);
+                ctx.closePath();
+                ctx.fill();
+                const winCols = m.winCols || 3;
+                const winRows = m.winRows || 4;
+                const winW = gw * 0.14;
+                const winH = m.height * 0.08;
+                const colGap = (gw * 0.7) / winCols;
+                const rowGap = (m.height * 0.7) / winRows;
+                for (let wc = 0; wc < winCols; wc++) {
+                    for (let wr = 0; wr < winRows; wr++) {
+                        const wx = bx + gw * 0.15 + wc * colGap + colGap * 0.2;
+                        const wy = by + m.roofH + wr * rowGap + rowGap * 0.2;
+                        const seed = (m.seed + wc * 7 + wr * 13) % 17;
+                        if (nightFactor > 0.3 && seed > 5) {
+                            ctx.fillStyle = `rgba(255, 240, 150, ${0.5 + nightFactor * 0.4})`;
+                        } else if (nightFactor < 0.5) {
+                            ctx.fillStyle = seed > 9 ? 'rgba(180, 210, 240, 0.55)' : 'rgba(100, 130, 160, 0.3)';
+                        } else {
+                            ctx.fillStyle = 'rgba(10, 20, 35, 0.8)';
+                        }
+                        ctx.fillRect(wx, wy, winW, winH);
+                        ctx.strokeStyle = nightFactor > 0.3 ? 'rgba(80,60,20,0.4)' : 'rgba(90,110,130,0.4)';
+                        ctx.lineWidth = 0.8;
+                        ctx.strokeRect(wx, wy, winW, winH);
+                    }
+                }
+                ctx.fillStyle = nightFactor < 0.5 ? '#5a6878' : '#111820';
+                ctx.fillRect(bx + gw * 0.3, by - 10, gw * 0.12, 10);
+                ctx.fillRect(bx + gw * 0.6, by - 6, gw * 0.08, 6);
+                ctx.strokeStyle = nightFactor < 0.5 ? 'rgba(50,70,90,0.3)' : 'rgba(0,0,0,0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(bx, by + m.roofH, gw, m.height - m.roofH);
+            });
+        };
+
+        const drawRival0 = (ctx, x, y, w, h, frame) => { /* VIEJA DE 90 AÑOS ORIGINAL */
+            ctx.save(); ctx.translate(x + w * 0.5, y + h); const t = frame * 0.7; const runCycle = Math.sin(t * 0.5); const runCycleCos = Math.cos(t * 0.5); const runCycle2 = Math.sin(t * 1.0); let currentBodyLean = 0.18 + runCycle2 * 0.02; const bodyBob = Math.abs(runCycleCos) * h * 0.025; const HEAD_R = h * 0.13, TORSO_H = h * 0.28, TORSO_W = w * 0.32; const WAIST_Y = -(h * 0.40) + bodyBob; const HIP_Y = WAIST_Y + h * 0.03; const SHOULDER_Y = WAIST_Y - TORSO_H * 0.95; const HEAD_Y = SHOULDER_Y - h * 0.15; const SKIN = '#F5CBA7', SKIN_D = '#D4A574'; const SHIRT = '#B0BEC5', SHIRT_L = '#ECEFF1', SHIRT_D = '#78909C'; const SHORT = '#F8BBD0', SHORT_D = '#F48FB1'; const SHOE_W = '#8D6E63', SHOE_S = '#6D4C41', SHOE_D = '#795548'; const SOCK = '#ECEFF1', HAIR = '#E0E0E0'; const thighLen = h * 0.23, shinLen = h * 0.21, legThick = w * 0.14; const drawLeg = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack ? w*0.04 : 0, HIP_Y); ctx.rotate(currentBodyLean * 0.5); ctx.rotate(phase * 0.30 + runCycle2 * 0.08); const sg = ctx.createLinearGradient(-legThick*0.6,0,legThick*0.6,thighLen*0.55); sg.addColorStop(0, isBack ? SHORT_D : SHORT); sg.addColorStop(1, isBack ? '#E91E63' : SHORT_D); ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(-legThick*0.58,0); ctx.lineTo(legThick*0.58,0); ctx.lineTo(legThick*0.48,thighLen*0.55); ctx.lineTo(-legThick*0.48,thighLen*0.55); ctx.closePath(); ctx.fill(); ctx.translate(0, thighLen*0.55); let kb = 0.08; if (phase>0) kb+=phase*0.5; ctx.rotate(kb); const shg = ctx.createLinearGradient(-legThick*0.5,0,legThick*0.5,shinLen); shg.addColorStop(0,SKIN); shg.addColorStop(1,SKIN_D); ctx.fillStyle=shg; ctx.beginPath(); ctx.moveTo(-legThick*0.5,0); ctx.lineTo(legThick*0.5,0); ctx.lineTo(legThick*0.40,shinLen*0.82); ctx.lineTo(-legThick*0.40,shinLen*0.82); ctx.closePath(); ctx.fill(); ctx.translate(0,shinLen*0.82); ctx.fillStyle=SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.42,0,legThick*0.84,shinLen*0.16,3); ctx.fill(); ctx.translate(0,shinLen*0.14); const sLen=legThick*2.0, sH=legThick*0.80, sOff=isBack?-legThick*0.2:legThick*0.1; ctx.fillStyle='#5D4037'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08,sH*0.65,sLen*1.05,sH*0.35,5); ctx.fill(); const sg2=ctx.createLinearGradient(sOff,0,sOff+sLen,sH); sg2.addColorStop(0,SHOE_W); sg2.addColorStop(1,SHOE_D); ctx.fillStyle=sg2; ctx.beginPath(); ctx.moveTo(sOff,sH*0.65); ctx.lineTo(sOff+sLen*0.82,sH*0.65); ctx.bezierCurveTo(sOff+sLen*1.0,sH*0.65,sOff+sLen*1.0,sH*0.18,sOff+sLen*0.75,sH*0.12); ctx.lineTo(sOff+sLen*0.32,0); ctx.bezierCurveTo(sOff+sLen*0.08,-sH*0.05,sOff-sLen*0.05,sH*0.22,sOff,sH*0.65); ctx.closePath(); ctx.fill(); ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.78; drawLeg(true); ctx.restore(); ctx.save(); ctx.translate(0,WAIST_Y); ctx.rotate(currentBodyLean); ctx.fillStyle=SHORT; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.75,-4,TORSO_W*1.5,16,4); ctx.fill(); const tg=ctx.createLinearGradient(-TORSO_W*0.6,0,TORSO_W*0.6,-TORSO_H); tg.addColorStop(0,SHIRT_D); tg.addColorStop(0.4,SHIRT); tg.addColorStop(1,SHIRT_L); ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-TORSO_W*0.65,0); ctx.lineTo(TORSO_W*0.65,0); ctx.lineTo(TORSO_W*0.60,-TORSO_H); ctx.lineTo(-TORSO_W*0.55,-TORSO_H); ctx.closePath(); ctx.fill(); ctx.fillStyle='#A1887F'; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.5,-TORSO_H*0.45,TORSO_W*0.45,TORSO_H*0.28,5); ctx.fill(); ctx.fillStyle='#8D6E63'; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.46,-TORSO_H*0.41,TORSO_W*0.37,TORSO_H*0.20,3); ctx.fill(); ctx.restore(); const armLen=h*0.20,foreLen=h*0.18,armThick=w*0.11; const drawArm=(isBack)=>{ const phase=isBack?-runCycle:runCycle; ctx.save(); ctx.translate(isBack?w*0.04:0,SHOULDER_Y); ctx.rotate(currentBodyLean); ctx.rotate(-phase*0.35+0.15); const mg=ctx.createLinearGradient(-armThick*0.5,0,armThick*0.5,armLen*0.5); mg.addColorStop(0,isBack?SHIRT_D:SHIRT); mg.addColorStop(1,isBack?SHIRT:SHIRT_L); ctx.fillStyle=mg; ctx.beginPath(); ctx.moveTo(-armThick*0.5,0); ctx.lineTo(armThick*0.5,0); ctx.lineTo(armThick*0.4,armLen*0.5); ctx.lineTo(-armThick*0.4,armLen*0.5); ctx.closePath(); ctx.fill(); ctx.translate(0,armLen*0.5); let eb=0.25; if(phase<0) eb+=Math.abs(phase)*0.4; ctx.rotate(eb); const fa=ctx.createLinearGradient(-armThick*0.45,0,armThick*0.45,foreLen); fa.addColorStop(0,SKIN); fa.addColorStop(1,SKIN_D); ctx.fillStyle=fa; ctx.beginPath(); ctx.moveTo(-armThick*0.45,0); ctx.lineTo(armThick*0.45,0); ctx.lineTo(armThick*0.32,foreLen*0.9); ctx.lineTo(-armThick*0.32,foreLen*0.9); ctx.closePath(); ctx.fill(); ctx.fillStyle=SKIN; ctx.beginPath(); ctx.ellipse(0,foreLen*0.9,armThick*0.38,armThick*0.32,0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.72; drawArm(true); ctx.restore(); drawLeg(false); ctx.save(); ctx.translate(w*0.05,HEAD_Y); ctx.rotate(currentBodyLean*0.6); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.roundRect(-HEAD_R*0.28,0,HEAD_R*0.56,HEAD_R*0.55,4); ctx.fill(); const hCy=-HEAD_R*0.5; const fg=ctx.createRadialGradient(HEAD_R*0.2,hCy-HEAD_R*0.2,2,0,hCy,HEAD_R*1.05); fg.addColorStop(0,SKIN); fg.addColorStop(1,SKIN_D); ctx.fillStyle=fg; ctx.beginPath(); ctx.ellipse(0,hCy,HEAD_R*0.92,HEAD_R,0.08,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1.2; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEAD_R*0.1,hCy-HEAD_R*0.05); ctx.lineTo(HEAD_R*0.5,hCy-HEAD_R*0.08); ctx.stroke(); ctx.beginPath(); ctx.moveTo(HEAD_R*0.15,hCy+HEAD_R*0.12); ctx.lineTo(HEAD_R*0.55,hCy+HEAD_R*0.10); ctx.stroke(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.82,hCy+HEAD_R*0.08,HEAD_R*0.18,HEAD_R*0.25,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(HEAD_R*0.25,hCy-HEAD_R*0.1,HEAD_R*0.20,HEAD_R*0.13,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#555'; ctx.beginPath(); ctx.arc(HEAD_R*0.35,hCy-HEAD_R*0.1,HEAD_R*0.09,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#555'; ctx.lineWidth=HEAD_R*0.10; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEAD_R*0.08,hCy-HEAD_R*0.26); ctx.quadraticCurveTo(HEAD_R*0.32,hCy-HEAD_R*0.32,HEAD_R*0.52,hCy-HEAD_R*0.22); ctx.stroke(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(HEAD_R*0.80,hCy+HEAD_R*0.06,HEAD_R*0.13,HEAD_R*0.09,0.4,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#c08060'; ctx.lineWidth=HEAD_R*0.09; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEAD_R*0.38,hCy+HEAD_R*0.30); ctx.quadraticCurveTo(HEAD_R*0.60,hCy+HEAD_R*0.42,HEAD_R*0.78,hCy+HEAD_R*0.28); ctx.stroke(); ctx.fillStyle=HAIR; ctx.beginPath(); ctx.arc(-HEAD_R*0.1,hCy-HEAD_R*1.05,HEAD_R*0.72,Math.PI,0); ctx.fill(); ctx.beginPath(); ctx.arc(-HEAD_R*0.55,hCy-HEAD_R*0.55,HEAD_R*0.32,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(HEAD_R*0.35,hCy-HEAD_R*1.1,HEAD_R*0.28,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-HEAD_R*0.2,hCy-HEAD_R*1.25,HEAD_R*0.25,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#BDBDBD'; ctx.lineWidth=HEAD_R*0.18; ctx.beginPath(); ctx.arc(-HEAD_R*0.1,hCy-HEAD_R*0.92,HEAD_R*0.55,Math.PI*1.1,Math.PI*0.1); ctx.stroke(); ctx.restore(); drawArm(false); ctx.restore();
+        };
+
+        const drawRival = (ctx, x, y, w, h, frame) => { /* MARTAG ORIGINAL */
+            ctx.save(); ctx.translate(x + w * 0.5, y + h); const t = frame * 1.4; const runCycle = Math.sin(t * 0.5); const runCycleCos = Math.cos(t * 0.5); const runCycle2 = Math.sin(t * 1.0); let currentBodyLean = -0.12 + runCycle2 * 0.04; const bodyBob = Math.abs(runCycleCos) * h * 0.04; const HEAD_R = h * 0.12, TORSO_H = h * 0.30, TORSO_W = w * 0.30; const WAIST_Y = -(h * 0.44) + bodyBob; const HIP_Y = WAIST_Y + h * 0.03; const SHOULDER_Y = WAIST_Y - TORSO_H * 0.95; const HEAD_Y = SHOULDER_Y - h * 0.15; const SKIN = '#FFCBA4', SKIN_D = '#E5A882'; const SHIRT = '#2E7D32', SHIRT_L = '#66BB6A', SHIRT_D = '#1B5E20'; const SHORT = '#F9A825', SHORT_D = '#F57F17'; const SHOE_W = '#F8F8F8', SHOE_S = '#F9A825', SHOE_D = '#CCCCCC'; const SOCK = '#FFFFFF', CAP = '#F9A825', CAP_B = '#E65100', HAIR = '#1a1a1a'; const thighLen = h * 0.25, shinLen = h * 0.23, legThick = w * 0.13; const drawLeg = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack ? w*0.04 : 0, HIP_Y); ctx.rotate(currentBodyLean); ctx.rotate(phase * 0.55 + runCycle2 * 0.15); const sg = ctx.createLinearGradient(-legThick*0.6,0,legThick*0.6,thighLen*0.55); sg.addColorStop(0, isBack ? SHORT_D : SHORT); sg.addColorStop(1, isBack ? '#C76A00' : SHORT_D); ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(-legThick*0.55,0); ctx.lineTo(legThick*0.55,0); ctx.lineTo(legThick*0.45,thighLen*0.55); ctx.lineTo(-legThick*0.45,thighLen*0.55); ctx.closePath(); ctx.fill(); ctx.translate(0, thighLen*0.55); let kb = 0.18; if (phase>0) kb+=phase*1.1; if (phase<-0.5) kb*=0.5; ctx.rotate(kb); const shg = ctx.createLinearGradient(-legThick*0.5,0,legThick*0.5,shinLen); shg.addColorStop(0,SKIN); shg.addColorStop(1,SKIN_D); ctx.fillStyle=shg; ctx.beginPath(); ctx.moveTo(-legThick*0.5,0); ctx.lineTo(legThick*0.5,0); ctx.lineTo(legThick*0.38,shinLen*0.82); ctx.lineTo(-legThick*0.38,shinLen*0.82); ctx.closePath(); ctx.fill(); ctx.translate(0,shinLen*0.82); ctx.fillStyle=SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.4,0,legThick*0.8,shinLen*0.14,3); ctx.fill(); ctx.translate(0,shinLen*0.12); const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1; ctx.fillStyle='#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08,sH*0.65,sLen*1.05,sH*0.32,4); ctx.fill(); const sg2=ctx.createLinearGradient(sOff,0,sOff+sLen,sH); sg2.addColorStop(0,SHOE_W); sg2.addColorStop(1,SHOE_D); ctx.fillStyle=sg2; ctx.beginPath(); ctx.moveTo(sOff,sH*0.65); ctx.lineTo(sOff+sLen*0.85,sH*0.65); ctx.bezierCurveTo(sOff+sLen*1.05,sH*0.65,sOff+sLen*1.05,sH*0.15,sOff+sLen*0.80,sH*0.1); ctx.lineTo(sOff+sLen*0.35,0); ctx.bezierCurveTo(sOff+sLen*0.1,-sH*0.05,sOff-sLen*0.05,sH*0.2,sOff,sH*0.65); ctx.closePath(); ctx.fill(); ctx.strokeStyle=SHOE_S; ctx.lineWidth=sH*0.22; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28,sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55,sH*0.1,sOff+sLen*0.75,sH*0.12,sOff+sLen*0.82,sH*0.3); ctx.stroke(); ctx.lineCap='butt'; ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.78; drawLeg(true); ctx.restore(); ctx.save(); ctx.translate(0,WAIST_Y); ctx.rotate(currentBodyLean); ctx.fillStyle=SHORT; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.7,-4,TORSO_W*1.4,14,4); ctx.fill(); const tg=ctx.createLinearGradient(-TORSO_W*0.6,0,TORSO_W*0.6,-TORSO_H); tg.addColorStop(0,SHIRT_D); tg.addColorStop(0.4,SHIRT); tg.addColorStop(1,SHIRT_L); ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-TORSO_W*0.6,0); ctx.lineTo(TORSO_W*0.6,0); ctx.lineTo(TORSO_W*0.65,-TORSO_H); ctx.lineTo(-TORSO_W*0.55,-TORSO_H); ctx.closePath(); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.28,-TORSO_H*0.72,TORSO_W*0.56,TORSO_H*0.38,3); ctx.fill(); ctx.fillStyle=SHIRT_D; ctx.font=`bold ${Math.round(TORSO_H*0.28)}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('7',0,-TORSO_H*0.53); ctx.restore(); const armLen=h*0.22,foreLen=h*0.20,armThick=w*0.10; const drawArm=(isBack)=>{ const phase=isBack?-runCycle:runCycle; ctx.save(); ctx.translate(isBack?w*0.04:0,SHOULDER_Y); ctx.rotate(currentBodyLean); ctx.rotate(-phase*0.75+0.25); const mg=ctx.createLinearGradient(-armThick*0.5,0,armThick*0.5,armLen*0.5); mg.addColorStop(0,isBack?SHIRT_D:SHIRT); mg.addColorStop(1,isBack?SHIRT:SHIRT_L); ctx.fillStyle=mg; ctx.beginPath(); ctx.moveTo(-armThick*0.5,0); ctx.lineTo(armThick*0.5,0); ctx.lineTo(armThick*0.4,armLen*0.5); ctx.lineTo(-armThick*0.4,armLen*0.5); ctx.closePath(); ctx.fill(); ctx.translate(0,armLen*0.5); let eb=0.45; if(phase<0) eb+=Math.abs(phase)*0.8; ctx.rotate(eb); const fa=ctx.createLinearGradient(-armThick*0.45,0,armThick*0.45,foreLen); fa.addColorStop(0,SKIN); fa.addColorStop(1,SKIN_D); ctx.fillStyle=fa; ctx.beginPath(); ctx.moveTo(-armThick*0.45,0); ctx.lineTo(armThick*0.45,0); ctx.lineTo(armThick*0.32,foreLen*0.9); ctx.lineTo(-armThick*0.32,foreLen*0.9); ctx.closePath(); ctx.fill(); ctx.fillStyle=SKIN; ctx.beginPath(); ctx.ellipse(0,foreLen*0.9,armThick*0.38,armThick*0.32,0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.72; drawArm(true); ctx.restore(); drawLeg(false); ctx.save(); ctx.translate(w*0.05,HEAD_Y); ctx.rotate(currentBodyLean*0.4); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.roundRect(-HEAD_R*0.28,0,HEAD_R*0.56,HEAD_R*0.55,4); ctx.fill(); const hCy=-HEAD_R*0.5; const fg=ctx.createRadialGradient(HEAD_R*0.2,hCy-HEAD_R*0.2,2,0,hCy,HEAD_R*1.05); fg.addColorStop(0,SKIN); fg.addColorStop(1,SKIN_D); ctx.fillStyle=fg; ctx.beginPath(); ctx.ellipse(0,hCy,HEAD_R*0.95,HEAD_R,0.08,0,Math.PI*2); ctx.fill(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.82,hCy+HEAD_R*0.08,HEAD_R*0.18,HEAD_R*0.25,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(HEAD_R*0.28,hCy-HEAD_R*0.1,HEAD_R*0.22,HEAD_R*0.14,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2a1800'; ctx.beginPath(); ctx.arc(HEAD_R*0.38,hCy-HEAD_R*0.1,HEAD_R*0.1,0,Math.PI*2); ctx.fill(); ctx.strokeStyle=HAIR; ctx.lineWidth=HEAD_R*0.12; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEAD_R*0.1,hCy-HEAD_R*0.28); ctx.quadraticCurveTo(HEAD_R*0.35,hCy-HEAD_R*0.36,HEAD_R*0.56,hCy-HEAD_R*0.25); ctx.stroke(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(HEAD_R*0.82,hCy+HEAD_R*0.06,HEAD_R*0.13,HEAD_R*0.09,0.4,0,Math.PI*2); ctx.fill(); const capGrad=ctx.createLinearGradient(-HEAD_R*0.7,hCy-HEAD_R*1.05,HEAD_R*0.8,hCy-HEAD_R*0.3); capGrad.addColorStop(0,CAP_B); capGrad.addColorStop(1,CAP); ctx.fillStyle=capGrad; ctx.beginPath(); ctx.moveTo(-HEAD_R*0.75,hCy-HEAD_R*0.05); ctx.bezierCurveTo(-HEAD_R*0.9,hCy-HEAD_R*1.1,HEAD_R*0.5,hCy-HEAD_R*1.25,HEAD_R*0.78,hCy-HEAD_R*0.3); ctx.bezierCurveTo(HEAD_R*0.6,hCy-HEAD_R*0.1,HEAD_R*0.1,hCy-HEAD_R*0.05,-HEAD_R*0.75,hCy-HEAD_R*0.05); ctx.closePath(); ctx.fill(); ctx.fillStyle=CAP_B; ctx.beginPath(); ctx.moveTo(HEAD_R*0.62,hCy-HEAD_R*0.3); ctx.bezierCurveTo(HEAD_R*1.35,hCy-HEAD_R*0.32,HEAD_R*1.4,hCy-HEAD_R*0.08,HEAD_R*0.8,hCy-HEAD_R*0.05); ctx.lineTo(HEAD_R*0.62,hCy-HEAD_R*0.1); ctx.closePath(); ctx.fill(); ctx.fillStyle=HAIR; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.75,hCy+HEAD_R*0.05,HEAD_R*0.22,HEAD_R*0.35,-0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); drawArm(false); ctx.restore();
+        };
+
+        const drawRival2 = (ctx, x, y, w, h, frame) => { /* ZAPPONI ORIGINAL */
+            ctx.save(); ctx.translate(x + w * 0.5, y + h); const t = frame * 1.3; const runCycle = Math.sin(t * 0.5); const runCycleCos = Math.cos(t * 0.5); const runCycle2 = Math.sin(t * 1.0); let currentBodyLean = -0.13 + runCycle2 * 0.04; const bodyBob = Math.abs(runCycleCos) * h * 0.04; const HEAD_R = h * 0.12, TORSO_H = h * 0.30, TORSO_W = w * 0.30; const WAIST_Y = -(h * 0.44) + bodyBob; const HIP_Y = WAIST_Y + h * 0.03; const SHOULDER_Y = WAIST_Y - TORSO_H * 0.95; const HEAD_Y = SHOULDER_Y - h * 0.15; const SKIN = '#FFCBA4', SKIN_D = '#E5A882'; const SHIRT = '#6A1B9A', SHIRT_L = '#AB47BC', SHIRT_D = '#4A148C'; const SHORT = '#F5F5F5', SHORT_D = '#BDBDBD'; const SHOE_W = '#F8F8F8', SHOE_S = '#6A1B9A', SHOE_D = '#CCCCCC'; const SOCK = '#FFFFFF', CAP = '#6A1B9A', CAP_B = '#4A148C', HAIR = '#5a3000'; const thighLen = h * 0.25, shinLen = h * 0.23, legThick = w * 0.13; const drawLeg = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack ? w*0.04 : 0, HIP_Y); ctx.rotate(currentBodyLean); ctx.rotate(phase * 0.52 + runCycle2 * 0.14); const sg = ctx.createLinearGradient(-legThick*0.6,0,legThick*0.6,thighLen*0.55); sg.addColorStop(0, isBack ? SHORT_D : SHORT); sg.addColorStop(1, isBack ? '#9E9E9E' : SHORT_D); ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(-legThick*0.55,0); ctx.lineTo(legThick*0.55,0); ctx.lineTo(legThick*0.45,thighLen*0.55); ctx.lineTo(-legThick*0.45,thighLen*0.55); ctx.closePath(); ctx.fill(); ctx.translate(0, thighLen*0.55); let kb = 0.18; if (phase>0) kb+=phase*1.0; if (phase<-0.5) kb*=0.5; ctx.rotate(kb); const shg = ctx.createLinearGradient(-legThick*0.5,0,legThick*0.5,shinLen); shg.addColorStop(0,SKIN); shg.addColorStop(1,SKIN_D); ctx.fillStyle=shg; ctx.beginPath(); ctx.moveTo(-legThick*0.5,0); ctx.lineTo(legThick*0.5,0); ctx.lineTo(legThick*0.38,shinLen*0.82); ctx.lineTo(-legThick*0.38,shinLen*0.82); ctx.closePath(); ctx.fill(); ctx.translate(0,shinLen*0.82); ctx.fillStyle=SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.4,0,legThick*0.8,shinLen*0.14,3); ctx.fill(); ctx.translate(0,shinLen*0.12); const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1; ctx.fillStyle='#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08,sH*0.65,sLen*1.05,sH*0.32,4); ctx.fill(); const sg2=ctx.createLinearGradient(sOff,0,sOff+sLen,sH); sg2.addColorStop(0,SHOE_W); sg2.addColorStop(1,SHOE_D); ctx.fillStyle=sg2; ctx.beginPath(); ctx.moveTo(sOff,sH*0.65); ctx.lineTo(sOff+sLen*0.85,sH*0.65); ctx.bezierCurveTo(sOff+sLen*1.05,sH*0.65,sOff+sLen*1.05,sH*0.15,sOff+sLen*0.80,sH*0.1); ctx.lineTo(sOff+sLen*0.35,0); ctx.bezierCurveTo(sOff+sLen*0.1,-sH*0.05,sOff-sLen*0.05,sH*0.2,sOff,sH*0.65); ctx.closePath(); ctx.fill(); ctx.strokeStyle=SHOE_S; ctx.lineWidth=sH*0.22; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28,sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55,sH*0.1,sOff+sLen*0.75,sH*0.12,sOff+sLen*0.82,sH*0.3); ctx.stroke(); ctx.lineCap='butt'; ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.78; drawLeg(true); ctx.restore(); ctx.save(); ctx.translate(0,WAIST_Y); ctx.rotate(currentBodyLean); ctx.fillStyle=SHORT; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.7,-4,TORSO_W*1.4,14,4); ctx.fill(); const tg=ctx.createLinearGradient(-TORSO_W*0.6,0,TORSO_W*0.6,-TORSO_H); tg.addColorStop(0,SHIRT_D); tg.addColorStop(0.4,SHIRT); tg.addColorStop(1,SHIRT_L); ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-TORSO_W*0.6,0); ctx.lineTo(TORSO_W*0.6,0); ctx.lineTo(TORSO_W*0.65,-TORSO_H); ctx.lineTo(-TORSO_W*0.55,-TORSO_H); ctx.closePath(); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.28,-TORSO_H*0.72,TORSO_W*0.56,TORSO_H*0.38,3); ctx.fill(); ctx.fillStyle=SHIRT_D; ctx.font=`bold ${Math.round(TORSO_H*0.28)}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('4',0,-TORSO_H*0.53); ctx.restore(); const armLen=h*0.22,foreLen=h*0.20,armThick=w*0.10; const drawArm=(isBack)=>{ const phase=isBack?-runCycle:runCycle; ctx.save(); ctx.translate(isBack?w*0.04:0,SHOULDER_Y); ctx.rotate(currentBodyLean); ctx.rotate(-phase*0.75+0.25); const mg=ctx.createLinearGradient(-armThick*0.5,0,armThick*0.5,armLen*0.5); mg.addColorStop(0,isBack?SHIRT_D:SHIRT); mg.addColorStop(1,isBack?SHIRT:SHIRT_L); ctx.fillStyle=mg; ctx.beginPath(); ctx.moveTo(-armThick*0.5,0); ctx.lineTo(armThick*0.5,0); ctx.lineTo(armThick*0.4,armLen*0.5); ctx.lineTo(-armThick*0.4,armLen*0.5); ctx.closePath(); ctx.fill(); ctx.translate(0,armLen*0.5); let eb=0.45; if(phase<0) eb+=Math.abs(phase)*0.8; ctx.rotate(eb); const fa=ctx.createLinearGradient(-armThick*0.45,0,armThick*0.45,foreLen); fa.addColorStop(0,SKIN); fa.addColorStop(1,SKIN_D); ctx.fillStyle=fa; ctx.beginPath(); ctx.moveTo(-armThick*0.45,0); ctx.lineTo(armThick*0.45,0); ctx.lineTo(armThick*0.32,foreLen*0.9); ctx.lineTo(-armThick*0.32,foreLen*0.9); ctx.closePath(); ctx.fill(); ctx.fillStyle=SKIN; ctx.beginPath(); ctx.ellipse(0,foreLen*0.9,armThick*0.38,armThick*0.32,0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.72; drawArm(true); ctx.restore(); drawLeg(false); ctx.save(); ctx.translate(w*0.05,HEAD_Y); ctx.rotate(currentBodyLean*0.4); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.roundRect(-HEAD_R*0.28,0,HEAD_R*0.56,HEAD_R*0.55,4); ctx.fill(); const hCy=-HEAD_R*0.5; const fg=ctx.createRadialGradient(HEAD_R*0.2,hCy-HEAD_R*0.2,2,0,hCy,HEAD_R*1.05); fg.addColorStop(0,SKIN); fg.addColorStop(1,SKIN_D); ctx.fillStyle=fg; ctx.beginPath(); ctx.ellipse(0,hCy,HEAD_R*0.95,HEAD_R,0.08,0,Math.PI*2); ctx.fill(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.82,hCy+HEAD_R*0.08,HEAD_R*0.18,HEAD_R*0.25,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(HEAD_R*0.28,hCy-HEAD_R*0.1,HEAD_R*0.22,HEAD_R*0.14,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2a1800'; ctx.beginPath(); ctx.arc(HEAD_R*0.38,hCy-HEAD_R*0.1,HEAD_R*0.1,0,Math.PI*2); ctx.fill(); ctx.strokeStyle=HAIR; ctx.lineWidth=HEAD_R*0.12; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEAD_R*0.1,hCy-HEAD_R*0.28); ctx.quadraticCurveTo(HEAD_R*0.35,hCy-HEAD_R*0.36,HEAD_R*0.56,hCy-HEAD_R*0.25); ctx.stroke(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(HEAD_R*0.82,hCy+HEAD_R*0.06,HEAD_R*0.13,HEAD_R*0.09,0.4,0,Math.PI*2); ctx.fill(); const capGrad=ctx.createLinearGradient(-HEAD_R*0.7,hCy-HEAD_R*1.05,HEAD_R*0.8,hCy-HEAD_R*0.3); capGrad.addColorStop(0,CAP_B); capGrad.addColorStop(1,CAP); ctx.fillStyle=capGrad; ctx.beginPath(); ctx.moveTo(-HEAD_R*0.75,hCy-HEAD_R*0.05); ctx.bezierCurveTo(-HEAD_R*0.9,hCy-HEAD_R*1.1,HEAD_R*0.5,hCy-HEAD_R*1.25,HEAD_R*0.78,hCy-HEAD_R*0.3); ctx.bezierCurveTo(HEAD_R*0.6,hCy-HEAD_R*0.1,HEAD_R*0.1,hCy-HEAD_R*0.05,-HEAD_R*0.75,hCy-HEAD_R*0.05); ctx.closePath(); ctx.fill(); ctx.fillStyle=CAP_B; ctx.beginPath(); ctx.moveTo(HEAD_R*0.62,hCy-HEAD_R*0.3); ctx.bezierCurveTo(HEAD_R*1.35,hCy-HEAD_R*0.32,HEAD_R*1.4,hCy-HEAD_R*0.08,HEAD_R*0.8,hCy-HEAD_R*0.05); ctx.lineTo(HEAD_R*0.62,hCy-HEAD_R*0.1); ctx.closePath(); ctx.fill(); ctx.fillStyle=HAIR; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.75,hCy+HEAD_R*0.05,HEAD_R*0.22,HEAD_R*0.35,-0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); drawArm(false); ctx.restore();
+        };
+
+        const drawRival3 = (ctx, x, y, w, h, frame) => { /* IVAN */
+            ctx.save(); ctx.translate(x + w * 0.5, y + h); const t = frame * 1.35; const runCycle = Math.sin(t * 0.5); const runCycleCos = Math.cos(t * 0.5); const runCycle2 = Math.sin(t * 1.0); let currentBodyLean = -0.11 + runCycle2 * 0.04; const bodyBob = Math.abs(runCycleCos) * h * 0.04; const HEAD_R = h * 0.12, TORSO_H = h * 0.30, TORSO_W = w * 0.30; const WAIST_Y = -(h * 0.44) + bodyBob; const HIP_Y = WAIST_Y + h * 0.03; const SHOULDER_Y = WAIST_Y - TORSO_H * 0.95; const HEAD_Y = SHOULDER_Y - h * 0.15; const SKIN = '#FFCBA4', SKIN_D = '#E5A882'; const SHIRT = '#C62828', SHIRT_L = '#EF5350', SHIRT_D = '#B71C1C'; const SHORT = '#1A237E', SHORT_D = '#0D47A1'; const SHOE_W = '#F8F8F8', SHOE_S = '#C62828', SHOE_D = '#CCCCCC'; const SOCK = '#FFFFFF', CAP = '#C62828', CAP_B = '#B71C1C', HAIR = '#1a1a1a'; const thighLen = h * 0.25, shinLen = h * 0.23, legThick = w * 0.13; const drawLeg = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack ? w*0.04 : 0, HIP_Y); ctx.rotate(currentBodyLean); ctx.rotate(phase * 0.53 + runCycle2 * 0.14); const sg = ctx.createLinearGradient(-legThick*0.6,0,legThick*0.6,thighLen*0.55); sg.addColorStop(0, isBack ? SHORT_D : SHORT); sg.addColorStop(1, isBack ? '#0a2472' : SHORT_D); ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(-legThick*0.55,0); ctx.lineTo(legThick*0.55,0); ctx.lineTo(legThick*0.45,thighLen*0.55); ctx.lineTo(-legThick*0.45,thighLen*0.55); ctx.closePath(); ctx.fill(); ctx.translate(0, thighLen*0.55); let kb = 0.18; if (phase>0) kb+=phase*1.05; if (phase<-0.5) kb*=0.5; ctx.rotate(kb); const shg = ctx.createLinearGradient(-legThick*0.5,0,legThick*0.5,shinLen); shg.addColorStop(0,SKIN); shg.addColorStop(1,SKIN_D); ctx.fillStyle=shg; ctx.beginPath(); ctx.moveTo(-legThick*0.5,0); ctx.lineTo(legThick*0.5,0); ctx.lineTo(legThick*0.38,shinLen*0.82); ctx.lineTo(-legThick*0.38,shinLen*0.82); ctx.closePath(); ctx.fill(); ctx.translate(0,shinLen*0.82); ctx.fillStyle=SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.4,0,legThick*0.8,shinLen*0.14,3); ctx.fill(); ctx.translate(0,shinLen*0.12); const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1; ctx.fillStyle='#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08,sH*0.65,sLen*1.05,sH*0.32,4); ctx.fill(); const sg2=ctx.createLinearGradient(sOff,0,sOff+sLen,sH); sg2.addColorStop(0,SHOE_W); sg2.addColorStop(1,SHOE_D); ctx.fillStyle=sg2; ctx.beginPath(); ctx.moveTo(sOff,sH*0.65); ctx.lineTo(sOff+sLen*0.85,sH*0.65); ctx.bezierCurveTo(sOff+sLen*1.05,sH*0.65,sOff+sLen*1.05,sH*0.15,sOff+sLen*0.80,sH*0.1); ctx.lineTo(sOff+sLen*0.35,0); ctx.bezierCurveTo(sOff+sLen*0.1,-sH*0.05,sOff-sLen*0.05,sH*0.2,sOff,sH*0.65); ctx.closePath(); ctx.fill(); ctx.strokeStyle=SHOE_S; ctx.lineWidth=sH*0.22; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28,sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55,sH*0.1,sOff+sLen*0.75,sH*0.12,sOff+sLen*0.82,sH*0.3); ctx.stroke(); ctx.lineCap='butt'; ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.78; drawLeg(true); ctx.restore(); ctx.save(); ctx.translate(0,WAIST_Y); ctx.rotate(currentBodyLean); ctx.fillStyle=SHORT; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.7,-4,TORSO_W*1.4,14,4); ctx.fill(); const tg=ctx.createLinearGradient(-TORSO_W*0.6,0,TORSO_W*0.6,-TORSO_H); tg.addColorStop(0,SHIRT_D); tg.addColorStop(0.4,SHIRT); tg.addColorStop(1,SHIRT_L); ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-TORSO_W*0.6,0); ctx.lineTo(TORSO_W*0.6,0); ctx.lineTo(TORSO_W*0.65,-TORSO_H); ctx.lineTo(-TORSO_W*0.55,-TORSO_H); ctx.closePath(); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.roundRect(-TORSO_W*0.28,-TORSO_H*0.72,TORSO_W*0.56,TORSO_H*0.38,3); ctx.fill(); ctx.fillStyle=SHIRT_D; ctx.font=`bold ${Math.round(TORSO_H*0.28)}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('IV',0,-TORSO_H*0.53); ctx.restore(); const armLen=h*0.22,foreLen=h*0.20,armThick=w*0.10; const drawArm=(isBack)=>{ const phase=isBack?-runCycle:runCycle; ctx.save(); ctx.translate(isBack?w*0.04:0,SHOULDER_Y); ctx.rotate(currentBodyLean); ctx.rotate(-phase*0.75+0.25); const mg=ctx.createLinearGradient(-armThick*0.5,0,armThick*0.5,armLen*0.5); mg.addColorStop(0,isBack?SHIRT_D:SHIRT); mg.addColorStop(1,isBack?SHIRT:SHIRT_L); ctx.fillStyle=mg; ctx.beginPath(); ctx.moveTo(-armThick*0.5,0); ctx.lineTo(armThick*0.5,0); ctx.lineTo(armThick*0.4,armLen*0.5); ctx.lineTo(-armThick*0.4,armLen*0.5); ctx.closePath(); ctx.fill(); ctx.translate(0,armLen*0.5); let eb=0.45; if(phase<0) eb+=Math.abs(phase)*0.8; ctx.rotate(eb); const fa=ctx.createLinearGradient(-armThick*0.45,0,armThick*0.45,foreLen); fa.addColorStop(0,SKIN); fa.addColorStop(1,SKIN_D); ctx.fillStyle=fa; ctx.beginPath(); ctx.moveTo(-armThick*0.45,0); ctx.lineTo(armThick*0.45,0); ctx.lineTo(armThick*0.32,foreLen*0.9); ctx.lineTo(-armThick*0.32,foreLen*0.9); ctx.closePath(); ctx.fill(); ctx.fillStyle=SKIN; ctx.beginPath(); ctx.ellipse(0,foreLen*0.9,armThick*0.38,armThick*0.32,0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.72; drawArm(true); ctx.restore(); drawLeg(false); ctx.save(); ctx.translate(w*0.05,HEAD_Y); ctx.rotate(currentBodyLean*0.4); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.roundRect(-HEAD_R*0.28,0,HEAD_R*0.56,HEAD_R*0.55,4); ctx.fill(); const hCy=-HEAD_R*0.5; const fg=ctx.createRadialGradient(HEAD_R*0.2,hCy-HEAD_R*0.2,2,0,hCy,HEAD_R*1.05); fg.addColorStop(0,SKIN); fg.addColorStop(1,SKIN_D); ctx.fillStyle=fg; ctx.beginPath(); ctx.ellipse(0,hCy,HEAD_R*0.95,HEAD_R,0.08,0,Math.PI*2); ctx.fill(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.82,hCy+HEAD_R*0.08,HEAD_R*0.18,HEAD_R*0.25,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(HEAD_R*0.28,hCy-HEAD_R*0.1,HEAD_R*0.22,HEAD_R*0.14,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2a1800'; ctx.beginPath(); ctx.arc(HEAD_R*0.38,hCy-HEAD_R*0.1,HEAD_R*0.1,0,Math.PI*2); ctx.fill(); ctx.strokeStyle=HAIR; ctx.lineWidth=HEAD_R*0.12; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEAD_R*0.1,hCy-HEAD_R*0.28); ctx.quadraticCurveTo(HEAD_R*0.35,hCy-HEAD_R*0.36,HEAD_R*0.56,hCy-HEAD_R*0.25); ctx.stroke(); ctx.fillStyle=SKIN_D; ctx.beginPath(); ctx.ellipse(HEAD_R*0.82,hCy+HEAD_R*0.06,HEAD_R*0.13,HEAD_R*0.09,0.4,0,Math.PI*2); ctx.fill(); const capGrad=ctx.createLinearGradient(-HEAD_R*0.7,hCy-HEAD_R*1.05,HEAD_R*0.8,hCy-HEAD_R*0.3); capGrad.addColorStop(0,CAP_B); capGrad.addColorStop(1,CAP); ctx.fillStyle=capGrad; ctx.beginPath(); ctx.moveTo(-HEAD_R*0.75,hCy-HEAD_R*0.05); ctx.bezierCurveTo(-HEAD_R*0.9,hCy-HEAD_R*1.1,HEAD_R*0.5,hCy-HEAD_R*1.25,HEAD_R*0.78,hCy-HEAD_R*0.3); ctx.bezierCurveTo(HEAD_R*0.6,hCy-HEAD_R*0.1,HEAD_R*0.1,hCy-HEAD_R*0.05,-HEAD_R*0.75,hCy-HEAD_R*0.05); ctx.closePath(); ctx.fill(); ctx.fillStyle=CAP_B; ctx.beginPath(); ctx.moveTo(HEAD_R*0.62,hCy-HEAD_R*0.3); ctx.bezierCurveTo(HEAD_R*1.35,hCy-HEAD_R*0.32,HEAD_R*1.4,hCy-HEAD_R*0.08,HEAD_R*0.8,hCy-HEAD_R*0.05); ctx.lineTo(HEAD_R*0.62,hCy-HEAD_R*0.1); ctx.closePath(); ctx.fill(); ctx.fillStyle=HAIR; ctx.beginPath(); ctx.ellipse(-HEAD_R*0.75,hCy+HEAD_R*0.05,HEAD_R*0.22,HEAD_R*0.35,-0.3,0,Math.PI*2); ctx.fill(); ctx.restore(); drawArm(false); ctx.restore();
+        };
+
+        const drawFireBarrel = (ctx, x, y, width, height, anim) => { /* IGUAL QUE EL ORIGINAL */
+            ctx.save(); const cx = x + width / 2; const bTop = y + height * 0.28; const bH = height * 0.72; const bW = width; const bBot = bTop + bH; const drawFlame = (fx, fBaseY, fw, fh, phase) => { ctx.save(); const flameGrad = ctx.createRadialGradient(fx, fBaseY - fh*0.3, 1, fx, fBaseY - fh*0.5, fh); flameGrad.addColorStop(0, 'rgba(255,255,180,0.95)'); flameGrad.addColorStop(0.25,'rgba(255,220,0,0.9)'); flameGrad.addColorStop(0.55,'rgba(255,100,0,0.85)'); flameGrad.addColorStop(1, 'rgba(200,20,0,0)'); ctx.fillStyle = flameGrad; const waver = Math.sin(anim * 4 + phase) * fw * 0.18; const waver2 = Math.sin(anim * 5.5 + phase + 1) * fw * 0.12; ctx.beginPath(); ctx.moveTo(fx - fw*0.5, fBaseY); ctx.bezierCurveTo( fx - fw*0.4 + waver, fBaseY - fh*0.4, fx - fw*0.1 + waver2, fBaseY - fh*0.75, fx, fBaseY - fh ); ctx.bezierCurveTo( fx + fw*0.1 - waver2, fBaseY - fh*0.75, fx + fw*0.4 - waver, fBaseY - fh*0.4, fx + fw*0.5, fBaseY ); ctx.closePath(); ctx.fill(); ctx.restore(); }; drawFlame(cx, bTop + 4, bW * 0.7, height * 0.35, 0); drawFlame(cx - bW * 0.2, bTop + 8, bW * 0.45, height * 0.26, 1.2); drawFlame(cx + bW * 0.2, bTop + 6, bW * 0.42, height * 0.28, 2.4); ctx.save(); ctx.globalAlpha = 0.12 + Math.sin(anim * 3) * 0.07; const heatGlow = ctx.createRadialGradient(cx, bTop, 5, cx, bTop - height*0.15, bW*0.9); heatGlow.addColorStop(0, 'rgba(255,160,0,1)'); heatGlow.addColorStop(1, 'rgba(255,80,0,0)'); ctx.fillStyle = heatGlow; ctx.beginPath(); ctx.ellipse(cx, bTop, bW * 0.9, height * 0.22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(cx + 5, bBot + 3, bW * 0.52, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); const metalGrad = ctx.createLinearGradient(x, bTop, x + bW, bTop); metalGrad.addColorStop(0, '#1a1a1a'); metalGrad.addColorStop(0.15, '#3a3a3a'); metalGrad.addColorStop(0.45, '#555'); metalGrad.addColorStop(0.7, '#2e2e2e'); metalGrad.addColorStop(1, '#111'); ctx.fillStyle = metalGrad; ctx.beginPath(); ctx.moveTo(x + bW*0.08, bTop); ctx.bezierCurveTo(x - bW*0.05, bTop + bH*0.3, x - bW*0.05, bTop + bH*0.7, x + bW*0.08, bBot); ctx.lineTo(x + bW*0.92, bBot); ctx.bezierCurveTo(x + bW*1.05, bTop + bH*0.7, x + bW*1.05, bTop + bH*0.3, x + bW*0.92, bTop); ctx.closePath(); ctx.fill(); ctx.save(); ctx.globalAlpha = 0.18; const leftShine = ctx.createLinearGradient(x, bTop, x + bW*0.25, bTop); leftShine.addColorStop(0, 'rgba(255,255,255,0.0)'); leftShine.addColorStop(1, 'rgba(255,255,255,0.6)'); ctx.fillStyle = leftShine; ctx.beginPath(); ctx.moveTo(x + bW*0.08, bTop); ctx.bezierCurveTo(x - bW*0.05, bTop+bH*0.3, x - bW*0.05, bTop+bH*0.7, x + bW*0.08, bBot); ctx.lineTo(x + bW*0.28, bBot); ctx.bezierCurveTo(x + bW*0.18, bTop+bH*0.7, x + bW*0.18, bTop+bH*0.3, x + bW*0.28, bTop); ctx.closePath(); ctx.fill(); ctx.restore(); const ringY = [bTop + bH*0.18, bTop + bH*0.5, bTop + bH*0.82]; ringY.forEach(ry => { const ringGrad = ctx.createLinearGradient(x, ry, x+bW, ry); ringGrad.addColorStop(0, '#8B6914'); ringGrad.addColorStop(0.3, '#D4A017'); ringGrad.addColorStop(0.6, '#F5C518'); ringGrad.addColorStop(1, '#8B6914'); ctx.strokeStyle = ringGrad; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x + bW*0.07, ry); ctx.bezierCurveTo(x - bW*0.04, ry+3, x - bW*0.04, ry+3, x + bW*0.07, ry+4); ctx.moveTo(x + bW*0.07, ry); ctx.lineTo(x + bW*0.93, ry); ctx.bezierCurveTo(x + bW*1.04, ry+3, x + bW*1.04, ry+3, x + bW*0.93, ry+4); ctx.lineTo(x + bW*0.07, ry+4); ctx.stroke(); [-0.3, 0.3].forEach(offset => { ctx.fillStyle = '#c8940d'; ctx.beginPath(); ctx.arc(cx + bW*offset, ry + 2, 3, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#7a5a00'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(cx + bW*offset - 2, ry+2); ctx.lineTo(cx + bW*offset + 2, ry+2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx + bW*offset, ry); ctx.lineTo(cx + bW*offset, ry+4); ctx.stroke(); }); }); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1; [-0.22, 0, 0.22].forEach(off => { ctx.beginPath(); ctx.moveTo(cx + off*bW, bTop); ctx.lineTo(cx + off*bW, bBot); ctx.stroke(); }); const lidGrad = ctx.createRadialGradient(cx - bW*0.1, bTop + 4, 2, cx, bTop, bW*0.55); lidGrad.addColorStop(0, '#555'); lidGrad.addColorStop(0.6, '#2a2a2a'); lidGrad.addColorStop(1, '#111'); ctx.fillStyle = lidGrad; ctx.beginPath(); ctx.ellipse(cx, bTop, bW*0.5, bH*0.065, 0, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#D4A017'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(cx, bTop, bW*0.5, bH*0.065, 0, 0, Math.PI*2); ctx.stroke(); ctx.save(); ctx.font = `bold ${bW * 0.22}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,180,0,0.15)'; ctx.fillRect(cx - bW*0.38, bTop + bH*0.38, bW*0.76, bH*0.24); ctx.fillStyle = '#F5C518'; ctx.shadowBlur = 6; ctx.shadowColor = '#FF6D00'; ctx.fillText('⚠', cx, bTop + bH*0.5); ctx.shadowBlur = 0; ctx.restore(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + bW*0.08, bTop); ctx.bezierCurveTo(x - bW*0.05, bTop+bH*0.3, x - bW*0.05, bTop+bH*0.7, x + bW*0.08, bBot); ctx.lineTo(x + bW*0.92, bBot); ctx.bezierCurveTo(x + bW*1.05, bTop+bH*0.7, x + bW*1.05, bTop+bH*0.3, x + bW*0.92, bTop); ctx.closePath(); ctx.stroke(); ctx.restore();
+        };
+
+        const drawSky = () => {
+            const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
+            const skyColor = interpolateColor(SKY_DAY, SKY_NIGHT, nightFactor);
+            // Sky gradient - lighter at horizon (urban haze)
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+            skyGrad.addColorStop(0, skyColor);
+            if (nightFactor < 0.5) {
+                skyGrad.addColorStop(0.7, interpolateColor('#C5D8EC', '#0a1030', nightFactor));
+                skyGrad.addColorStop(1, interpolateColor('#D8E8F0', '#0e1535', nightFactor));
+            } else {
+                skyGrad.addColorStop(0.7, interpolateColor('#b0c8e0', '#0d1528', nightFactor));
+                skyGrad.addColorStop(1, interpolateColor('#c0d0e0', '#161e30', nightFactor));
+            }
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            // Urban haze near horizon
+            const hazeGrad = ctx.createLinearGradient(0, GAME_HEIGHT - GROUND_HEIGHT - 80, 0, GAME_HEIGHT - GROUND_HEIGHT);
+            const hazeAlpha = nightFactor < 0.4 ? 0.12 : 0.22;
+            hazeGrad.addColorStop(0, 'rgba(180, 170, 140, 0)');
+            hazeGrad.addColorStop(1, 'rgba(180, 170, 140, ' + hazeAlpha + ')');
+            ctx.fillStyle = hazeGrad;
+            ctx.fillRect(0, GAME_HEIGHT - GROUND_HEIGHT - 80, GAME_WIDTH, 80);
+        };
+
+        const interpolateColor = (color1, color2, factor) => {
+            const c1 = hexToRgb(color1); const c2 = hexToRgb(color2);
+            return `rgb(${Math.round(c1.r + (c2.r - c1.r) * factor)}, ${Math.round(c1.g + (c2.g - c1.g) * factor)}, ${Math.round(c1.b + (c2.b - c1.b) * factor)})`;
+        };
+
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, (m, r, g, b) => r + r + g + g + b + b));
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+        };
+
+        const drawSunMoon = () => {
+            const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
+            const pulse = Math.sin(gameTime * 0.01) * 5 + 20;
+            const x = 150; const y = 80 + pulse;
+            if (nightFactor < 0.5) {
+                const sunFactor = 1 - nightFactor * 2;
+                ctx.shadowBlur = 30 * sunFactor; ctx.shadowColor = SUN_COLOR; ctx.fillStyle = SUN_COLOR;
+                ctx.beginPath(); ctx.arc(x, y, 40, 0, Math.PI*2); ctx.fill();
+            } else {
+                const moonFactor = (nightFactor - 0.5) * 2;
+                ctx.shadowBlur = 20; ctx.shadowColor = '#FFF'; ctx.fillStyle = MOON_COLOR;
+                ctx.beginPath(); ctx.arc(x, y, 35, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#CCC'; ctx.beginPath(); ctx.arc(x-10, y-8, 7, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#AAA'; ctx.beginPath(); ctx.arc(x+12, y+5, 5, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+        };
+
+        const drawCloud = (x, y, size) => { ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(x, y, size/3, 0, Math.PI*2); ctx.arc(x+size/3, y, size/2, 0, Math.PI*2); ctx.arc(x+size*2/3, y, size/3, 0, Math.PI*2); ctx.arc(x+size/2, y-size/4, size/3, 0, Math.PI*2); ctx.fill(); };
+        const drawTree = (x, y, width, height) => {
+            const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
+            const poleW = Math.max(5, width * 0.18);
+            const poleX = x + width * 0.45 - poleW / 2;
+            // Pole gradient
+            const poleGrad = ctx.createLinearGradient(poleX, 0, poleX + poleW, 0);
+            poleGrad.addColorStop(0, '#1e1e1e'); poleGrad.addColorStop(0.5, '#606060'); poleGrad.addColorStop(1, '#1a1a1a');
+            ctx.fillStyle = poleGrad;
+            ctx.fillRect(poleX, y - height + 18, poleW, height - 18);
+            // Curved arm
+            const armEndX = poleX + poleW * 0.5 + width * 1.0;
+            const armEndY = y - height + 18;
+            ctx.save();
+            ctx.strokeStyle = '#484848';
+            ctx.lineWidth = poleW * 0.65;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(poleX + poleW * 0.5, y - height + 28);
+            ctx.quadraticCurveTo(poleX + width * 0.5, y - height + 8, armEndX, armEndY);
+            ctx.stroke();
+            ctx.restore();
+            // Lamp housing
+            const lampW = width * 0.55;
+            const lampH = poleW * 3;
+            const lampX = armEndX - lampW * 0.5;
+            const lampY = armEndY - lampH;
+            ctx.fillStyle = '#2c2c2c';
+            ctx.beginPath();
+            ctx.moveTo(lampX, lampY + lampH * 0.3);
+            ctx.lineTo(lampX + lampW * 0.1, lampY);
+            ctx.lineTo(lampX + lampW * 0.9, lampY);
+            ctx.lineTo(lampX + lampW, lampY + lampH * 0.3);
+            ctx.lineTo(lampX + lampW, lampY + lampH);
+            ctx.lineTo(lampX, lampY + lampH);
+            ctx.closePath();
+            ctx.fill();
+            // Lamp glow
+            if (nightFactor > 0.15) {
+                const glowR = lampW * 2.2;
+                const glow = ctx.createRadialGradient(lampX + lampW/2, lampY + lampH * 0.6, 2, lampX + lampW/2, lampY + lampH, glowR);
+                glow.addColorStop(0, 'rgba(255, 240, 120, ' + (nightFactor * 0.7) + ')');
+                glow.addColorStop(0.4, 'rgba(255, 200, 50, ' + (nightFactor * 0.25) + ')');
+                glow.addColorStop(1, 'rgba(255, 180, 0, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath(); ctx.ellipse(lampX + lampW/2, lampY + lampH, glowR, glowR * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(255, 252, 180, ' + (0.6 + nightFactor * 0.35) + ')';
+            } else {
+                ctx.fillStyle = 'rgba(200, 200, 170, 0.55)';
+            }
+            ctx.fillRect(lampX + 3, lampY + lampH * 0.32, lampW - 6, lampH * 0.62);
+            // Base
+            ctx.fillStyle = '#222';
+            ctx.fillRect(poleX - 5, y - 8, poleW + 10, 8);
+        };
+        const drawGround = () => {
+            // Asphalt road
+            const gg = ctx.createLinearGradient(0, GAME_HEIGHT-GROUND_HEIGHT, 0, GAME_HEIGHT);
+            gg.addColorStop(0, '#3a3a3a'); gg.addColorStop(0.3, '#2e2e2e'); gg.addColorStop(1, '#222222');
+            ctx.fillStyle = gg;
+            ctx.fillRect(0, GAME_HEIGHT-GROUND_HEIGHT, GAME_WIDTH, GROUND_HEIGHT);
+            // Sidewalk strip at top
+            ctx.fillStyle = '#5a5550';
+            ctx.fillRect(0, GAME_HEIGHT-GROUND_HEIGHT, GAME_WIDTH, 12);
+            // Sidewalk edge highlight
+            ctx.fillStyle = '#6a6560';
+            ctx.fillRect(0, GAME_HEIGHT-GROUND_HEIGHT, GAME_WIDTH, 3);
+            // Road surface texture lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+            ctx.lineWidth = 1;
+            const textureOff = (gameTime * gameSpeed * 60) % 30;
+            for (let gx = -textureOff; gx < GAME_WIDTH + 30; gx += 30) {
+                ctx.beginPath(); ctx.moveTo(gx, GAME_HEIGHT-GROUND_HEIGHT+15); ctx.lineTo(gx + 20, GAME_HEIGHT-12); ctx.stroke();
+            }
+            // Dashed center line
+            ctx.strokeStyle = 'rgba(255, 220, 0, 0.75)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([45, 30]);
+            ctx.lineDashOffset = -textureOff * 2;
+            const lineY = GAME_HEIGHT - GROUND_HEIGHT + 55;
+            ctx.beginPath(); ctx.moveTo(0, lineY); ctx.lineTo(GAME_WIDTH, lineY); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset = 0;
+            // Gutter/curb at bottom
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, GAME_HEIGHT-8, GAME_WIDTH, 8);
+        };
+
+        const drawParticles = () => {
+            for (let i = particles.length-1; i >= 0; i--) {
+                const p = particles[i];
+                ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color || 'rgba(139,69,19,0.6)'; ctx.fillRect(p.x, p.y, p.size || 4, p.size || 4); ctx.restore();
+                p.x += p.vx || (-gameSpeed*0.5); p.y += p.vy || 1; p.life -= 0.02;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        };
+
+        const drawFloatingTexts = () => {
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const t = floatingTexts[i];
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, t.life);
+                ctx.fillStyle = t.color || '#FFD700';
+                ctx.font = 'bold 24px Montserrat';
+                ctx.shadowBlur = 4; ctx.shadowColor = '#000';
+                ctx.fillText(t.text, t.x, t.y);
+                ctx.restore();
+                t.y -= 1; t.life -= 0.02;
+                if (t.life <= 0) floatingTexts.splice(i, 1);
+            }
+        };
+
+        const drawJumpIndicator = () => {
+            if (!player || player.grounded) return;
+            const px = player.x + player.width/2; const py = player.y - 14;
+            for (let i = 0; i < player.jumpsLeft; i++) {
+                ctx.save(); ctx.fillStyle = 'rgba(100,200,255,0.9)'; ctx.shadowBlur = 8; ctx.shadowColor = '#00BFFF';
+                ctx.beginPath(); ctx.arc(px-8+i*16, py, 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            }
+        };
+
+        // ───────────────────────────────────────────────────────────────────────────
+        // LÓGICA DEL JUEGO
+        // ───────────────────────────────────────────────────────────────────────────
+        const updatePlayer = () => {
+            const jumpPressed = keys['Space'] || keys['ArrowUp'] || keys['KeyW'];
+            const prevJumpPressed = prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['KeyW'];
+            const justPressedJump = (jumpPressed && !prevJumpPressed) || touchJustPressed;
+
+            if (justPressedJump && player.jumpsLeft > 0) {
+                initAudio(); // Initialize audio context on first jump
+                const isDouble = !player.grounded;
+                player.vy = JUMP_VELOCITY;
+                player.grounded = false;
+                player.jumpsLeft--;
+                playSound(isDouble ? 'doubleJump' : 'jump');
+
+                const color = isDouble ? 'rgba(100,149,237,0.8)' : 'rgba(139,69,19,0.6)';
+                for (let i = 0; i < (isDouble ? 8 : 5); i++) {
+                    const a = Math.random()*Math.PI*2;
+                    particles.push({ x: player.x+player.width/2, y: player.y+player.height, vx: Math.cos(a)*3, vy: Math.sin(a)*3+1, life: 1, color });
+                }
+            }
+
+            prevKeys = { ...keys };
+            touchJustPressed = false;
+            player.vy += GRAVITY;
+            player.y += player.vy;
+            if (player.y >= GAME_HEIGHT - GROUND_HEIGHT - player.height) {
+                player.y = GAME_HEIGHT - GROUND_HEIGHT - player.height;
+                player.vy = 0; player.grounded = true; player.jumpsLeft = MAX_JUMPS;
+            }
+            player.frame += 0.2;
+            if (player.isSmiling) { player.smileTimer--; if (player.smileTimer <= 0) player.isSmiling = false; }
+            
+            // Trail effect if invincible or high speed
+            if (gameSpeed > 20 || invincibleFrames > 0) {
+                if(Math.random() < 0.2) {
+                     particles.push({ 
+                        x: player.x + player.width/2, 
+                        y: player.y + player.height/2, 
+                        vx: -gameSpeed*0.8, vy: 0, life: 0.5, 
+                        color: invincibleFrames > 0 ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 215, 0, 0.3)', size: 10 
+                    });
+                }
+            }
+        };
+
+        const spawnObstacle = () => {
+            if (!gameRunning) return;
+            const lvl = getCurrentLevel();
+            const BASE_W = 65, BASE_H_MIN = 95, BASE_H_MAX = 200;
+            const s = lvl.sizeScale;
+
+            const spawnOne = (offsetX = 0) => {
+                const width  = Math.round(randomInt(BASE_W * 0.8, BASE_W * 1.3) * s);
+                const height = Math.round(randomInt(BASE_H_MIN, BASE_H_MAX) * s);
+                obstacles.push({ x: GAME_WIDTH + offsetX, y: GAME_HEIGHT - GROUND_HEIGHT - height, width, height, vx: -gameSpeed, anim: 0 });
+            };
+
+            spawnOne();
+            if (Math.random() < lvl.double) spawnOne(Math.round(randomInt(BASE_W * 0.8, BASE_W * 1.3) * s) + randomInt(15, 30));
+            spawnTimeout = setTimeout(spawnObstacle, randomInt(lvl.spawnMin, lvl.spawnMax));
+        };
+
+        const spawnPowerUp = () => {
+            if (!gameRunning) return;
+            powerUpTimeout = setTimeout(spawnPowerUp, randomInt(3000, 6000));
+            const size = 60;
+            powerups.push({ x: GAME_WIDTH, y: GAME_HEIGHT - GROUND_HEIGHT - size - randomInt(0, 200), width: size, height: size, vx: -gameSpeed, anim: 0 });
+        };
+
+        const takeDamage = () => {
+            playSound('hit');
+            screenShake = 15;
+            if (lives > 1) {
+                lives--; invincibleFrames = INVINCIBLE_FRAMES; updateLivesDisplay();
+                for (let k = 0; k < 15; k++) {
+                    const a = Math.random()*Math.PI*2;
+                    particles.push({ x: player.x+player.width/2, y: player.y+player.height/2, vx: Math.cos(a)*5, vy: Math.sin(a)*5-2, life: 1, color: '#FF1744' });
+                }
+            } else { gameOver(); }
+        }
+
+        const updatePowerUps = () => {
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const p = powerups[i];
+                p.x += p.vx; p.vx = -gameSpeed; p.anim += 0.05;
+                if (rectCollide(player, p)) {
+                    powerups.splice(i, 1);
+                    playSound('coin');
+                    score += 50; lives += 1; updateLivesDisplay();
+                    player.isSmiling = true; player.smileTimer = FPS * 1.5;
+                    floatingTexts.push({text: "+50", x: p.x, y: p.y, life: 1.5, color: '#00FFFF'});
+                    for (let j = 0; j < 12; j++) particles.push({ x: p.x + p.width/2, y: p.y + p.height/2, vx: (Math.random() - 0.5)*6, vy: (Math.random() - 0.5)*6 - 2, life: 1, color: j%2===0 ? '#FF1744' : '#FFD700' });
+                    continue;
+                }
+                if (p.x + p.width < 0) powerups.splice(i, 1);
+            }
+        };
+
+        const updateObstacles = () => {
+            const lvl = getCurrentLevel();
+            if (lvl.name !== currentLevelName) {
+                currentLevelName = lvl.name; levelUpAnim = 180;
+                document.getElementById('levelDisplay').textContent = lvl.name;
+                playSound('levelup');
+            }
+            const targetSpeed = lvl.speed;
+            if (gameSpeed < targetSpeed) gameSpeed = Math.min(gameSpeed + 0.012, targetSpeed);
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x += obs.vx; obs.vx = -gameSpeed; obs.anim = (obs.anim || 0) + 0.05;
+                if (rectCollide(player, obs)) {
+                    if (invincibleFrames > 0) continue;
+                    takeDamage();
+                    if (!gameRunning) return;
+                }
+                if (obs.x + obs.width < 0) { 
+                    obstacles.splice(i, 1); score += 10; 
+                    player.isSmiling = true; player.smileTimer = FPS * 1.5;
+                }
+            }
+        };
+
+        const updateRivals = () => {
+            const mins = gameTime / 60;
+            const doRival = (r, minT, spd, overtakeTime) => {
+                if (mins < minT) { r.visible = false; return; }
+                if (!r.visible) { r.visible = true; r.x = GAME_WIDTH + 80; r.overtaken = false; r.overtakeAnim = 0; }
+                r.frame += 0.13;
+                if (!r.overtaken) {
+                    r.x -= gameSpeed * spd;
+                    if (r.x + r.width < -10) { r.overtaken = true; r.overtakeAnim = overtakeTime; triggerFireworks(); playSound('coin'); }
+                } else if (r.overtakeAnim > 0) r.overtakeAnim--;
+            }
+            doRival(rival0, 0.1, 0.55, 240);
+            doRival(rival, 0.2, 0.70, 220);
+            doRival(rival2, 0.3, 0.68, 220);
+            doRival(rival3, 0.35, 0.72, 220);
+        };
+
+        const updateBackground = () => {
+            gameTime += 1/FPS;
+            if (invincibleFrames > 0) invincibleFrames--;
+            if (levelUpAnim > 0) levelUpAnim--;
+            clouds.forEach(c => { c.x -= gameSpeed*c.speed; if (c.x+c.size < 0) c.x = GAME_WIDTH; });
+            trees.forEach(t => { t.x -= gameSpeed*t.speed; if (t.x+t.width < 0) t.x = GAME_WIDTH + randomInt(50,150); });
+            mountains.forEach(m => { m.x -= gameSpeed*(m.speed||0.35); if (m.x+m.width < 0) m.x = GAME_WIDTH + randomInt(10,60); });
+            if (Math.random() < 0.25 && player.grounded) particles.push({ x: player.x+player.width*0.5, y: GAME_HEIGHT-GROUND_HEIGHT+12, vx: -gameSpeed*0.6, vy: -0.5, life: 0.5, color: 'rgba(150,140,130,0.5)', size: 3 });
+        };
+
+        const gameOver = () => {
+            gameRunning = false;
+            let isNewHighScore = false;
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('mossos_highscore', highScore);
+                isNewHighScore = true;
+            }
+            
+            document.getElementById('highScoreDisplay').textContent = highScore;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOverText').textContent = isNewHighScore ? '¡NUEVO RÉCORD!' : '¡INTRIAGO TE GANARÁ ASÍ!';
+            document.getElementById('gameOver').style.display = 'block';
+            playSound('hit');
+            
+            setTimeout(() => {
+                document.getElementById('gameOver').style.display = 'none';
+                clearTimeout(spawnTimeout); clearTimeout(updateTimeout); clearTimeout(powerUpTimeout);
+                document.getElementById('characterSelect').style.display = 'flex';
+            }, 2500); 
+        };
+
+        const reset = () => {
+            clearTimeout(spawnTimeout); clearTimeout(updateTimeout); clearTimeout(powerUpTimeout);
+            initState(); initBackground(); update(); spawnObstacle(); spawnPowerUp();
+        };
+
+        const triggerFireworks = () => {
+            fireworkParticles = []; freezeTimer = FREEZE_FRAMES;
+            const colors = ['#FFD700','#FF4444','#44FF88','#44AAFF','#FF44FF','#FF8800','#FFFFFF','#00FFFF'];
+            for (let b = 0; b < 6; b++) {
+                const bx = GAME_WIDTH * (0.15 + Math.random() * 0.7); const by = GAME_HEIGHT * (0.1 + Math.random() * 0.45);
+                const col = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < 28; i++) {
+                    const angle = (Math.PI * 2 / 28) * i + Math.random() * 0.3; const speed = 3 + Math.random() * 6;
+                    fireworkParticles.push({ x: bx, y: by, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, alpha: 1, color: col, r: 3 + Math.random() * 3, life: 60 + Math.random() * 40 });
+                }
+            }
+        };
+
+        const updateFireworks = () => {
+            fireworkParticles = fireworkParticles.filter(p => p.alpha > 0.02);
+            fireworkParticles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.vx *= 0.97; p.alpha -= 1 / p.life; });
+        };
+
+        const drawFireworks = () => {
+            fireworkParticles.forEach(p => { ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+        };
+
+        const update = () => {
+            if (!gameRunning) return;
+            updateTimeout = setTimeout(update, 1000/FPS);
+            if (freezeTimer > 0) { freezeTimer--; updateFireworks(); if (freezeTimer === 0) fireworkParticles = []; return; }
+            
+            updatePlayer(); updateObstacles(); updatePowerUps(); updateRivals(); updateBackground();
+            document.getElementById('score').textContent = score;
+            
+            // Refrescar récord visualmente si lo superamos en vivo
+            if(score > highScore) {
+                document.getElementById('highScoreDisplay').textContent = score;
+            }
+            
+            score += 1;
+        };
+
+        const drawLevelUpBanner = () => {
+            if (levelUpAnim <= 0) return;
+            const alpha = Math.min(1, levelUpAnim / 30) * Math.min(1, levelUpAnim / 180 * 4);
+            ctx.save(); ctx.globalAlpha = alpha;
+            const bg = ctx.createLinearGradient(0, GAME_HEIGHT/2 - 40, 0, GAME_HEIGHT/2 + 40);
+            bg.addColorStop(0, 'rgba(20,20,60,0.0)'); bg.addColorStop(0.3, 'rgba(20,20,60,0.85)'); bg.addColorStop(0.7, 'rgba(20,20,60,0.85)'); bg.addColorStop(1, 'rgba(20,20,60,0.0)');
+            ctx.fillStyle = bg; ctx.fillRect(0, GAME_HEIGHT/2 - 40, GAME_WIDTH, 80);
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = 'bold 14px Montserrat'; ctx.fillStyle = 'rgba(255,200,50,0.8)';
+            ctx.fillText('▲ NUEVO NIVEL ▲', GAME_WIDTH/2, GAME_HEIGHT/2 - 18);
+            ctx.font = `900 32px Montserrat`; ctx.fillStyle = '#fff'; ctx.shadowBlur = 12; ctx.shadowColor = '#FFD700';
+            ctx.fillText(currentLevelName, GAME_WIDTH/2, GAME_HEIGHT/2 + 14);
+            ctx.shadowBlur = 0; ctx.restore();
+        };
+
+        const draw = () => {
+            requestAnimationFrame(draw);
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            ctx.save();
+            // Screen Shake Effect
+            if(screenShake > 0) {
+                ctx.translate(randomInt(-5, 5), randomInt(-5, 5));
+                screenShake--;
+            }
+
+            drawSky(); drawMountains(); drawBadalonaSign(); drawSunMoon();
+            clouds.forEach(c => drawCloud(c.x, c.y, c.size)); trees.forEach(t => drawTree(t.x, t.y, t.width, t.height)); drawGround();
+            obstacles.forEach(obs => drawFireBarrel(ctx, obs.x, obs.y, obs.width, obs.height, obs.anim||0));
+
+            powerups.forEach(p => drawRedBull(ctx, p.x, p.y, p.width, p.height, p.anim));
+            if (rival0.visible && !rival0.overtaken) drawRival0(ctx, rival0.x, rival0.y, rival0.width, rival0.height, rival0.frame);
+            if (rival.visible && !rival.overtaken) drawRival(ctx, rival.x, rival.y, rival.width, rival.height, rival.frame);
+            if (rival2.visible && !rival2.overtaken) drawRival2(ctx, rival2.x, rival2.y, rival2.width, rival2.height, rival2.frame);
+            if (rival3.visible && !rival3.overtaken) drawRival3(ctx, rival3.x, rival3.y, rival3.width, rival3.height, rival3.frame);
+
+            const showPlayer = gameRunning && (invincibleFrames <= 0 || Math.floor(invincibleFrames / 5) % 2 === 0);
+            if (showPlayer) {
+                if (selectedPlayer === 'rafa') drawRafa(ctx, player.x, player.y, player.width, player.height, player.frame);
+                else if (selectedPlayer === 'alba') drawAlba(ctx, player.x, player.y, player.width, player.height, player.frame);
+                else if (selectedPlayer === 'therian') drawTherian(ctx, player.x, player.y, player.width, player.height, player.frame);
+                else drawRunner(ctx, player.x, player.y, player.width, player.height, player.frame);
+            }
+
+            const drawMsg = (animTime, maxTime, color, shadow, text) => {
+                if(animTime <= 0) return;
+                const alpha = Math.min(1, animTime / 40) * Math.min(1, animTime / maxTime * 4);
+                ctx.save(); ctx.globalAlpha = alpha; ctx.textAlign = 'center'; ctx.font = '900 32px Montserrat';
+                ctx.fillStyle = color; ctx.shadowBlur = 16; ctx.shadowColor = shadow;
+                ctx.fillText(text, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 80);
+                ctx.shadowBlur = 0; ctx.restore();
+            };
+            drawMsg(rival0.overtakeAnim, 240, '#F8BBD0', '#E91E63', '¡PASASTE A LA VIEJA DE 90 AÑOS! 👵');
+            drawMsg(rival.overtakeAnim, 220, '#FFD700', '#FF8C00', '¡ADELANTASTE A MARTAG! 🏆');
+            drawMsg(rival2.overtakeAnim, 220, '#B39DDB', '#6A1B9A', '¡ADELANTASTE A ZAPPONI! 🏆');
+            drawMsg(rival3.overtakeAnim, 220, '#FF7043', '#BF360C', '¡ADELANTASTE A INTRIAGO! 🔥');
+
+            drawFireworks(); drawJumpIndicator(); drawParticles(); drawFloatingTexts(); drawLevelUpBanner();
+            ctx.restore(); // Restore after screen shake
+        };
+
+        const updateLivesDisplay = () => { const el = document.getElementById('livesDisplay'); if (el) el.textContent = '❤️'.repeat(lives); };
+
+        const startWithPlayer = (playerKey) => {
+            initAudio(); // Arrancar audio
+            selectedPlayer = playerKey;
+            document.getElementById('title').textContent = PLAYER_TITLES[playerKey];
+            document.getElementById('characterSelect').style.display = 'none';
+            initState(); initBackground(); spawnObstacle(); spawnPowerUp(); update();
+        };
+
+        const handleInput = (e) => {
+            if (document.getElementById('instrScreen').classList.contains('visible')) return;
+            const sel = document.getElementById('characterSelect');
+            if (sel && sel.style.display !== 'none') return;
+            if (e.type === 'touchstart') { e.preventDefault(); touchJustPressed = true; keys['Touch'] = true; }
+            else keys[e.code] = true;
+            if (!gameRunning && document.getElementById('gameOver').style.display === 'none' && document.getElementById('characterSelect').style.display === 'none' && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.type === 'touchstart')) reset();
+        };
+        const handleRelease = (e) => { if (e.type === 'touchend') keys['Touch'] = false; else keys[e.code] = false; };
+
+        document.addEventListener('keydown', handleInput); document.addEventListener('keyup', handleRelease);
+        document.addEventListener('touchstart', handleInput, { passive: false }); document.addEventListener('touchend', handleRelease, { passive: false });
+
+        ['camilo','rafa','alba','therian'].forEach(key => {
+            const el = document.getElementById('card-' + key);
+            if (el) { el.addEventListener('touchend', (e) => { e.stopPropagation(); startWithPlayer(key); }, { passive: true }); el.addEventListener('click', (e) => { e.stopPropagation(); startWithPlayer(key); }); }
+        });
+        window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+        resize(); draw();
+
+        // ===== INSTRUCCIONES =====
+        var instrTimer = null;
+        function mostrarInstrucciones() {
+            document.getElementById('characterSelect').style.display = 'none';
+            var s = document.getElementById('instrScreen');
+            s.classList.add('visible');
+            clearTimeout(instrTimer);
+            instrTimer = setTimeout(cerrarInstrucciones, 8000);
+        }
+        function cerrarInstrucciones() {
+            clearTimeout(instrTimer);
+            document.getElementById('instrScreen').classList.remove('visible');
+            document.getElementById('characterSelect').style.display = 'flex';
+        }
+
+        // Listeners directos en instrScreen para que no los capture el handler global
+        var is = document.getElementById('instrScreen');
+        is.addEventListener('click', function(e) { e.stopPropagation(); cerrarInstrucciones(); });
+        is.addEventListener('touchend', function(e) { e.stopPropagation(); cerrarInstrucciones(); }, { passive: true });
+    
+        (function() {
+            const field = document.getElementById('starField');
+            if (!field) return;
+            for (let i = 0; i < 60; i++) {
+                const s = document.createElement('div'); s.className = 'star'; s.style.left = Math.random() * 100 + '%'; s.style.top = Math.random() * 100 + '%'; s.style.setProperty('--dur', (1.5 + Math.random() * 3).toFixed(2) + 's'); s.style.setProperty('--delay', (Math.random() * 4).toFixed(2) + 's'); s.style.width = s.style.height = (2 + Math.random() * 3).toFixed(1) + 'px'; field.appendChild(s);
+            }
+        })();
+    </script>
+</body>
+</html>
