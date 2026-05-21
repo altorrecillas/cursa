@@ -303,10 +303,45 @@
             box-shadow: 0 0 20px rgba(255,215,0,0.4);
             transform: scale(1.05);
         }
+        .perf-toggle-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 100000;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 215, 0, 0.4);
+            border-radius: 50px;
+            color: #FFD700;
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(9px, 1.8vw, 13px);
+            font-weight: 700;
+            padding: 6px 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .perf-toggle-btn:hover, .perf-toggle-btn:active {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #FFD700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+            transform: scale(1.05);
+        }
+        .perf-toggle-btn.active {
+            background: rgba(255, 215, 0, 0.3);
+            border-color: #FFD700;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
+        <button id="perfToggleBtn" class="perf-toggle-btn" onclick="togglePerformanceMode()">⚡ Rendimiento: OFF</button>
         <div id="characterSelect">
             <div class="star-field" id="starField"></div>
             <h1>🏃 CURSA DE<br>MOSSOS 5K</h1>
@@ -578,6 +613,96 @@
     <script>
         "use strict";
 
+        // --- OPTIMIZACIONES PARA TELÉFONOS ANTIGUOS (Modo Rendimiento) ---
+        let performanceMode = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        function togglePerformanceMode(forceVal) {
+            performanceMode = (forceVal !== undefined) ? forceVal : !performanceMode;
+            const btn = document.getElementById('perfToggleBtn');
+            if (btn) {
+                if (performanceMode) {
+                    btn.classList.add('active');
+                    btn.textContent = '⚡ Rendimiento: ON';
+                } else {
+                    btn.classList.remove('active');
+                    btn.textContent = '⚡ Rendimiento: OFF';
+                }
+            }
+            initStars();
+            // Re-evaluar dpr y tamaño de canvas
+            if (typeof resize === 'function') {
+                resize();
+            }
+        }
+
+        function initStars() {
+            const field = document.getElementById('starField');
+            if (!field) return;
+            field.innerHTML = '';
+            const starCount = performanceMode ? 15 : 60;
+            for (let i = 0; i < starCount; i++) {
+                const s = document.createElement('div');
+                s.className = 'star';
+                s.style.left = Math.random() * 100 + '%';
+                s.style.top = Math.random() * 100 + '%';
+                s.style.setProperty('--dur', (1.5 + Math.random() * 3).toFixed(2) + 's');
+                s.style.setProperty('--delay', (Math.random() * 4).toFixed(2) + 's');
+                s.style.width = s.style.height = (2 + Math.random() * 3).toFixed(1) + 'px';
+                field.appendChild(s);
+            }
+        }
+
+        // --- DETECTOR AUTOMÁTICO DE FPS ---
+        let frameCount = 0;
+        let fpsCheckTimer = performance.now();
+        let fpsAutoDisabledCount = 0; // Para limitar activaciones automáticas
+
+        function checkFPS(now) {
+            frameCount++;
+            if (now - fpsCheckTimer >= 3000) { // Comprobar cada 3 segundos
+                const fps = (frameCount * 1000) / (now - fpsCheckTimer);
+                if (fps < 42 && !performanceMode && fpsAutoDisabledCount < 1) {
+                    togglePerformanceMode(true);
+                    fpsAutoDisabledCount++;
+                    if (typeof floatingTexts !== 'undefined') {
+                        floatingTexts.push({
+                            text: "⚡ MODO RENDIMIENTO AUTO-ACTIVADO",
+                            x: GAME_WIDTH / 2 - 250,
+                            y: GAME_HEIGHT / 2 - 80,
+                            life: 3.5,
+                            color: '#FFD700'
+                        });
+                    }
+                }
+                frameCount = 0;
+                fpsCheckTimer = now;
+            }
+        }
+
+        // --- GRADIENT UTILITIES FOR PERFORMANCE MODE ---
+        function getLinearGradient(ctx, x0, y0, x1, y1, stops, fallbackColor) {
+            if (performanceMode) {
+                return fallbackColor;
+            }
+            const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+            for (let i = 0; i < stops.length; i++) {
+                grad.addColorStop(stops[i][0], stops[i][1]);
+            }
+            return grad;
+        }
+
+        function getRadialGradient(ctx, x0, y0, r0, x1, y1, r1, stops, fallbackColor) {
+            if (performanceMode) {
+                return fallbackColor;
+            }
+            const grad = ctx.createRadialGradient(x0, y0, r0, x1, y1, r1);
+            for (let i = 0; i < stops.length; i++) {
+                grad.addColorStop(stops[i][0], stops[i][1]);
+            }
+            return grad;
+        }
+
+
         // --- SISTEMA DE AUDIO (Sintetizador Básico) ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
@@ -739,7 +864,7 @@
         };
 
         const resize = () => {
-            dpr = window.devicePixelRatio || 1;
+            dpr = performanceMode ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
             canvas.width = GAME_WIDTH * dpr;
             canvas.height = GAME_HEIGHT * dpr;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -806,9 +931,10 @@
                 ctx.translate(isBack ? w*0.04 : 0, HIP_Y);
                 ctx.rotate(currentBodyLean);
                 ctx.rotate(phase * 0.70 + runCycle2 * 0.18);
-                const sg = ctx.createLinearGradient(-legThick*0.6, 0, legThick*0.6, thighLen*0.55);
-                sg.addColorStop(0, isBack ? SHORT_D : SHORT);
-                sg.addColorStop(1, isBack ? '#0808A0' : SHORT_D);
+                const sg = getLinearGradient(ctx, -legThick*0.6, 0, legThick*0.6, thighLen*0.55, [
+                    [0, isBack ? SHORT_D : SHORT],
+                    [1, isBack ? '#0808A0' : SHORT_D]
+                ], isBack ? SHORT_D : SHORT);
                 ctx.fillStyle = sg;
                 ctx.beginPath();
                 ctx.moveTo(-legThick*0.58, 0); ctx.lineTo(legThick*0.58, 0);
@@ -817,8 +943,11 @@
                 ctx.translate(0, thighLen*0.55);
                 let kb = 0.18; if (phase > 0) kb += phase * 1.3; if (phase < -0.5) kb *= 0.5;
                 ctx.rotate(kb);
-                const shg = ctx.createLinearGradient(-legThick*0.5, 0, legThick*0.5, shinLen);
-                shg.addColorStop(0, SKIN); shg.addColorStop(1, SKIN_D); ctx.fillStyle = shg;
+                const shg = getLinearGradient(ctx, -legThick*0.5, 0, legThick*0.5, shinLen, [
+                    [0, SKIN],
+                    [1, SKIN_D]
+                ], SKIN);
+                ctx.fillStyle = shg;
                 ctx.beginPath();
                 ctx.moveTo(-legThick*0.5, 0); ctx.lineTo(legThick*0.5, 0);
                 ctx.lineTo(legThick*0.40, shinLen*0.82); ctx.lineTo(-legThick*0.40, shinLen*0.82);
@@ -831,8 +960,11 @@
                 ctx.translate(0, shinLen*0.12);
                 const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1;
                 ctx.fillStyle = '#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08, sH*0.65, sLen*1.05, sH*0.32, 4); ctx.fill();
-                const shoeGrad = ctx.createLinearGradient(sOff, 0, sOff+sLen, sH);
-                shoeGrad.addColorStop(0, SHOE_W); shoeGrad.addColorStop(1, SHOE_D); ctx.fillStyle = shoeGrad;
+                const shoeGrad = getLinearGradient(ctx, sOff, 0, sOff+sLen, sH, [
+                    [0, SHOE_W],
+                    [1, SHOE_D]
+                ], SHOE_W);
+                ctx.fillStyle = shoeGrad;
                 ctx.beginPath();
                 ctx.moveTo(sOff, sH*0.65); ctx.lineTo(sOff+sLen*0.85, sH*0.65);
                 ctx.bezierCurveTo(sOff+sLen*1.05, sH*0.65, sOff+sLen*1.05, sH*0.15, sOff+sLen*0.80, sH*0.1);
@@ -847,8 +979,11 @@
             ctx.save(); ctx.translate(0, WAIST_Y); ctx.rotate(currentBodyLean);
             ctx.fillStyle = SHORT;
             ctx.beginPath(); ctx.roundRect(-TORSO_W*0.72, -4, TORSO_W*1.44, 14, 4); ctx.fill();
-            const tg = ctx.createLinearGradient(-TORSO_W*0.6, 0, TORSO_W*0.6, -TORSO_H);
-            tg.addColorStop(0, SHIRT_D); tg.addColorStop(0.4, SHIRT); tg.addColorStop(1, SHIRT_L);
+            const tg = getLinearGradient(ctx, -TORSO_W*0.6, 0, TORSO_W*0.6, -TORSO_H, [
+                [0, SHIRT_D],
+                [0.4, SHIRT],
+                [1, SHIRT_L]
+            ], SHIRT);
             ctx.fillStyle = tg;
             ctx.beginPath();
             ctx.moveTo(-TORSO_W*0.62, 0); ctx.lineTo(TORSO_W*0.62, 0);
@@ -874,8 +1009,10 @@
                 const phase = isBack ? -runCycle : runCycle;
                 ctx.save(); ctx.translate(isBack ? w*0.04 : 0, SHOULDER_Y); ctx.rotate(currentBodyLean);
                 ctx.rotate(-phase*0.85 + 0.25);
-                const mg = ctx.createLinearGradient(-armThick*0.5, 0, armThick*0.5, armLen*0.5);
-                mg.addColorStop(0, isBack ? SHIRT_D : SHIRT); mg.addColorStop(1, isBack ? SHIRT : SHIRT_L);
+                const mg = getLinearGradient(ctx, -armThick*0.5, 0, armThick*0.5, armLen*0.5, [
+                    [0, isBack ? SHIRT_D : SHIRT],
+                    [1, isBack ? SHIRT : SHIRT_L]
+                ], isBack ? SHIRT_D : SHIRT);
                 ctx.fillStyle = mg;
                 ctx.beginPath();
                 ctx.moveTo(-armThick*0.5, 0); ctx.lineTo(armThick*0.5, 0);
@@ -886,8 +1023,11 @@
                 ctx.beginPath(); ctx.moveTo(armThick*0.12, armLen*0.05); ctx.quadraticCurveTo(armThick*0.45, armLen*0.22, armThick*0.28, armLen*0.48); ctx.stroke();
                 ctx.translate(0, armLen*0.5);
                 let eb = 0.45; if (phase < 0) eb += Math.abs(phase)*0.8; ctx.rotate(eb);
-                const fa = ctx.createLinearGradient(-armThick*0.45, 0, armThick*0.45, foreLen);
-                fa.addColorStop(0, SKIN); fa.addColorStop(1, SKIN_D); ctx.fillStyle = fa;
+                const fa = getLinearGradient(ctx, -armThick*0.45, 0, armThick*0.45, foreLen, [
+                    [0, SKIN],
+                    [1, SKIN_D]
+                ], SKIN);
+                ctx.fillStyle = fa;
                 ctx.beginPath();
                 ctx.moveTo(-armThick*0.45, 0); ctx.lineTo(armThick*0.45, 0);
                 ctx.lineTo(armThick*0.34, foreLen*0.9); ctx.lineTo(-armThick*0.34, foreLen*0.9);
@@ -904,8 +1044,11 @@
             ctx.beginPath(); ctx.roundRect(-HEAD_R*0.32, 0, HEAD_R*0.64, HEAD_R*0.55, 4); ctx.fill();
             const hCy = -HEAD_R * 0.52;
             // cabeza ligeramente más angular (mandíbula fuerte)
-            const faceGrad = ctx.createRadialGradient(HEAD_R*0.2, hCy-HEAD_R*0.2, 2, 0, hCy, HEAD_R*1.05);
-            faceGrad.addColorStop(0, SKIN_HL); faceGrad.addColorStop(0.5, SKIN); faceGrad.addColorStop(1, SKIN_D);
+            const faceGrad = getRadialGradient(ctx, HEAD_R*0.2, hCy-HEAD_R*0.2, 2, 0, hCy, HEAD_R*1.05, [
+                [0, SKIN_HL],
+                [0.5, SKIN],
+                [1, SKIN_D]
+            ], SKIN);
             ctx.fillStyle = faceGrad;
             ctx.beginPath(); ctx.ellipse(0, hCy, HEAD_R*1.0, HEAD_R, 0.05, 0, Math.PI*2); ctx.fill();
             // mejilla/mandíbula más pronunciada
@@ -984,9 +1127,10 @@
                 ctx.translate(isBack ? w*0.05 : 0, HIP_Y);
                 ctx.rotate(currentBodyLean);
                 ctx.rotate(phase * 0.50 + runCycle2 * 0.12); // menos amplitud (mayor cansado)
-                const sg = ctx.createLinearGradient(-legThick*0.6, 0, legThick*0.6, thighLen*0.55);
-                sg.addColorStop(0, isBack ? SHORT_D : SHORT);
-                sg.addColorStop(1, isBack ? '#050505' : SHORT_D);
+                const sg = getLinearGradient(ctx, -legThick*0.6, 0, legThick*0.6, thighLen*0.55, [
+                    [0, isBack ? SHORT_D : SHORT],
+                    [1, isBack ? '#050505' : SHORT_D]
+                ], isBack ? SHORT_D : SHORT);
                 ctx.fillStyle = sg;
                 ctx.beginPath();
                 ctx.moveTo(-legThick*0.60, 0); ctx.lineTo(legThick*0.60, 0);
@@ -995,8 +1139,11 @@
                 ctx.translate(0, thighLen*0.55);
                 let kb = 0.18; if (phase > 0) kb += phase * 1.0; if (phase < -0.5) kb *= 0.5;
                 ctx.rotate(kb);
-                const shg = ctx.createLinearGradient(-legThick*0.5, 0, legThick*0.5, shinLen);
-                shg.addColorStop(0, SKIN); shg.addColorStop(1, SKIN_D); ctx.fillStyle = shg;
+                const shg = getLinearGradient(ctx, -legThick*0.5, 0, legThick*0.5, shinLen, [
+                    [0, SKIN],
+                    [1, SKIN_D]
+                ], SKIN);
+                ctx.fillStyle = shg;
                 ctx.beginPath();
                 ctx.moveTo(-legThick*0.52, 0); ctx.lineTo(legThick*0.52, 0);
                 ctx.lineTo(legThick*0.40, shinLen*0.82); ctx.lineTo(-legThick*0.40, shinLen*0.82);
@@ -1006,8 +1153,11 @@
                 ctx.translate(0, shinLen*0.12);
                 const sLen=legThick*2.1, sH=legThick*0.80, sOff=isBack?-legThick*0.2:legThick*0.1;
                 ctx.fillStyle = '#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08, sH*0.65, sLen*1.05, sH*0.32, 4); ctx.fill();
-                const shoeGrad = ctx.createLinearGradient(sOff, 0, sOff+sLen, sH);
-                shoeGrad.addColorStop(0, SHOE_W); shoeGrad.addColorStop(1, SHOE_D); ctx.fillStyle = shoeGrad;
+                const shoeGrad = getLinearGradient(ctx, sOff, 0, sOff+sLen, sH, [
+                    [0, SHOE_W],
+                    [1, SHOE_D]
+                ], SHOE_W);
+                ctx.fillStyle = shoeGrad;
                 ctx.beginPath();
                 ctx.moveTo(sOff, sH*0.65); ctx.lineTo(sOff+sLen*0.82, sH*0.65);
                 ctx.bezierCurveTo(sOff+sLen*1.02, sH*0.65, sOff+sLen*1.02, sH*0.15, sOff+sLen*0.78, sH*0.1);
@@ -1025,15 +1175,21 @@
             ctx.beginPath(); ctx.roundRect(-TORSO_W*0.72, -4, TORSO_W*1.44, 16, 4); ctx.fill();
             // BARRIGA - elipse prominente
             const bellyBob = Math.abs(runCycleCos) * h * 0.008;
-            const bellyGrad = ctx.createRadialGradient(TORSO_W*0.3, -TORSO_H*0.22, 2, TORSO_W*0.25, -TORSO_H*0.28, TORSO_W*0.82);
-            bellyGrad.addColorStop(0, SHIRT_L); bellyGrad.addColorStop(0.5, SHIRT); bellyGrad.addColorStop(1, SHIRT_D);
+            const bellyGrad = getRadialGradient(ctx, TORSO_W*0.3, -TORSO_H*0.22, 2, TORSO_W*0.25, -TORSO_H*0.28, TORSO_W*0.82, [
+                [0, SHIRT_L],
+                [0.5, SHIRT],
+                [1, SHIRT_D]
+            ], SHIRT);
             ctx.fillStyle = bellyGrad;
             ctx.beginPath();
             ctx.ellipse(TORSO_W*0.22, -TORSO_H*0.28 + bellyBob, TORSO_W*0.80, TORSO_H*0.46, 0.1, 0, Math.PI*2);
             ctx.fill();
             // cuerpo de la camiseta (encima de la barriga)
-            const tg = ctx.createLinearGradient(-TORSO_W*0.6, 0, TORSO_W*0.5, -TORSO_H);
-            tg.addColorStop(0, SHIRT_D); tg.addColorStop(0.4, SHIRT); tg.addColorStop(1, SHIRT_L);
+            const tg = getLinearGradient(ctx, -TORSO_W*0.6, 0, TORSO_W*0.5, -TORSO_H, [
+                [0, SHIRT_D],
+                [0.4, SHIRT],
+                [1, SHIRT_L]
+            ], SHIRT);
             ctx.fillStyle = tg;
             ctx.beginPath();
             ctx.moveTo(-TORSO_W*0.60, -TORSO_H*0.15); ctx.lineTo(TORSO_W*0.52, -TORSO_H*0.15);
@@ -1055,8 +1211,10 @@
                 const phase = isBack ? -runCycle : runCycle;
                 ctx.save(); ctx.translate(isBack ? w*0.05 : 0, SHOULDER_Y); ctx.rotate(currentBodyLean);
                 ctx.rotate(-phase*0.65 + 0.28);
-                const mg = ctx.createLinearGradient(-armThick*0.5, 0, armThick*0.5, armLen*0.5);
-                mg.addColorStop(0, isBack ? SHIRT_D : SHIRT); mg.addColorStop(1, isBack ? SHIRT : SHIRT_L);
+                const mg = getLinearGradient(ctx, -armThick*0.5, 0, armThick*0.5, armLen*0.5, [
+                    [0, isBack ? SHIRT_D : SHIRT],
+                    [1, isBack ? SHIRT : SHIRT_L]
+                ], isBack ? SHIRT_D : SHIRT);
                 ctx.fillStyle = mg;
                 ctx.beginPath();
                 ctx.moveTo(-armThick*0.52, 0); ctx.lineTo(armThick*0.52, 0);
@@ -1064,8 +1222,11 @@
                 ctx.closePath(); ctx.fill();
                 ctx.translate(0, armLen*0.5);
                 let eb = 0.35; if (phase < 0) eb += Math.abs(phase)*0.65; ctx.rotate(eb);
-                const fa = ctx.createLinearGradient(-armThick*0.45, 0, armThick*0.45, foreLen);
-                fa.addColorStop(0, SKIN); fa.addColorStop(1, SKIN_D); ctx.fillStyle = fa;
+                const fa = getLinearGradient(ctx, -armThick*0.45, 0, armThick*0.45, foreLen, [
+                    [0, SKIN],
+                    [1, SKIN_D]
+                ], SKIN);
+                ctx.fillStyle = fa;
                 ctx.beginPath();
                 ctx.moveTo(-armThick*0.48, 0); ctx.lineTo(armThick*0.48, 0);
                 ctx.lineTo(armThick*0.36, foreLen*0.9); ctx.lineTo(-armThick*0.36, foreLen*0.9);
@@ -1082,8 +1243,11 @@
             ctx.beginPath(); ctx.roundRect(-HEAD_R*0.30, 0, HEAD_R*0.60, HEAD_R*0.52, 3); ctx.fill();
             const hCy = -HEAD_R * 0.52;
             // cara más redonda/llena (mayor)
-            const faceGrad = ctx.createRadialGradient(HEAD_R*0.1, hCy-HEAD_R*0.15, 2, 0, hCy, HEAD_R*1.1);
-            faceGrad.addColorStop(0, SKIN_HL); faceGrad.addColorStop(0.6, SKIN); faceGrad.addColorStop(1, SKIN_D);
+            const faceGrad = getRadialGradient(ctx, HEAD_R*0.1, hCy-HEAD_R*0.15, 2, 0, hCy, HEAD_R*1.1, [
+                [0, SKIN_HL],
+                [0.6, SKIN],
+                [1, SKIN_D]
+            ], SKIN);
             ctx.fillStyle = faceGrad;
             ctx.beginPath(); ctx.ellipse(0, hCy, HEAD_R*1.0, HEAD_R*1.05, 0.05, 0, Math.PI*2); ctx.fill();
             // mejilla más regordeta
@@ -1140,10 +1304,11 @@
             beardPath();
             ctx.clip();
             // base oscura de barba
-            const beardGrad = ctx.createLinearGradient(0, hCy+HEAD_R*0.20, 0, hCy+HEAD_R*1.10);
-            beardGrad.addColorStop(0, 'rgba(15,10,10,0.55)');
-            beardGrad.addColorStop(0.4, 'rgba(20,15,15,0.85)');
-            beardGrad.addColorStop(1, 'rgba(10,8,8,0.92)');
+            const beardGrad = getLinearGradient(ctx, 0, hCy+HEAD_R*0.20, 0, hCy+HEAD_R*1.10, [
+                [0, 'rgba(15,10,10,0.55)'],
+                [0.4, 'rgba(20,15,15,0.85)'],
+                [1, 'rgba(10,8,8,0.92)']
+            ], 'rgba(20,15,15,0.85)');
             ctx.fillStyle = beardGrad;
             ctx.fillRect(-HEAD_R*1.0, hCy+HEAD_R*0.15, HEAD_R*2.0, HEAD_R*1.10);
             // textura barba: puntos pequeños
@@ -1242,9 +1407,10 @@
                 ctx.translate(isBack ? w*0.04 : 0, HIP_Y);
                 ctx.rotate(currentBodyLean);
                 ctx.rotate(phase * 0.65 + runCycle2 * 0.18);
-                const sg = ctx.createLinearGradient(-legThick*0.6, 0, legThick*0.6, thighLen*0.55);
-                sg.addColorStop(0, isBack ? SHORT_D : SHORT);
-                sg.addColorStop(1, isBack ? '#E060A0' : SHORT_D);
+                const sg = getLinearGradient(ctx, -legThick*0.6, 0, legThick*0.6, thighLen*0.55, [
+                    [0, isBack ? SHORT_D : SHORT],
+                    [1, isBack ? '#E060A0' : SHORT_D]
+                ], isBack ? SHORT_D : SHORT);
                 ctx.fillStyle = sg;
                 ctx.beginPath();
                 ctx.moveTo(-legThick*0.55, 0); ctx.lineTo(legThick*0.55, 0);
@@ -1253,8 +1419,11 @@
                 ctx.translate(0, thighLen*0.55);
                 let kb = 0.18; if (phase > 0) kb += phase * 1.3; if (phase < -0.5) kb *= 0.5;
                 ctx.rotate(kb);
-                const shg = ctx.createLinearGradient(-legThick*0.5, 0, legThick*0.5, shinLen);
-                shg.addColorStop(0, SKIN); shg.addColorStop(1, SKIN_D); ctx.fillStyle = shg;
+                const shg = getLinearGradient(ctx, -legThick*0.5, 0, legThick*0.5, shinLen, [
+                    [0, SKIN],
+                    [1, SKIN_D]
+                ], SKIN);
+                ctx.fillStyle = shg;
                 ctx.beginPath();
                 ctx.moveTo(-legThick*0.5, 0); ctx.lineTo(legThick*0.5, 0);
                 ctx.lineTo(legThick*0.38, shinLen*0.82); ctx.lineTo(-legThick*0.38, shinLen*0.82);
@@ -1264,8 +1433,11 @@
                 ctx.translate(0, shinLen*0.12);
                 const sLen=legThick*2.2, sH=legThick*0.75, sOff=isBack?-legThick*0.2:legThick*0.1;
                 ctx.fillStyle = SHOE_D; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08, sH*0.65, sLen*1.05, sH*0.32, 4); ctx.fill();
-                const shoeGrad = ctx.createLinearGradient(sOff, 0, sOff+sLen, sH);
-                shoeGrad.addColorStop(0, SHOE_W); shoeGrad.addColorStop(1, SHOE_D); ctx.fillStyle = shoeGrad;
+                const shoeGrad = getLinearGradient(ctx, sOff, 0, sOff+sLen, sH, [
+                    [0, SHOE_W],
+                    [1, SHOE_D]
+                ], SHOE_W);
+                ctx.fillStyle = shoeGrad;
                 ctx.beginPath();
                 ctx.moveTo(sOff, sH*0.65); ctx.lineTo(sOff+sLen*0.85, sH*0.65);
                 ctx.bezierCurveTo(sOff+sLen*1.05, sH*0.65, sOff+sLen*1.05, sH*0.15, sOff+sLen*0.80, sH*0.1);
@@ -1314,8 +1486,11 @@
             ctx.save(); ctx.translate(0, WAIST_Y); ctx.rotate(currentBodyLean);
             ctx.fillStyle = SHORT;
             ctx.beginPath(); ctx.roundRect(-TORSO_W*0.7, -4, TORSO_W*1.4, 14, 4); ctx.fill();
-            const tg = ctx.createLinearGradient(-TORSO_W*0.6, 0, TORSO_W*0.6, -TORSO_H);
-            tg.addColorStop(0, SHIRT_D); tg.addColorStop(0.4, SHIRT); tg.addColorStop(1, SHIRT_L);
+            const tg = getLinearGradient(ctx, -TORSO_W*0.6, 0, TORSO_W*0.6, -TORSO_H, [
+                [0, SHIRT_D],
+                [0.4, SHIRT],
+                [1, SHIRT_L]
+            ], SHIRT);
             ctx.fillStyle = tg;
             ctx.beginPath();
             ctx.moveTo(-TORSO_W*0.60, 0); ctx.lineTo(TORSO_W*0.60, 0);
@@ -1344,8 +1519,10 @@
                 const phase = isBack ? -runCycle : runCycle;
                 ctx.save(); ctx.translate(isBack ? w*0.04 : 0, SHOULDER_Y); ctx.rotate(currentBodyLean);
                 ctx.rotate(-phase*0.80 + 0.28);
-                const mg = ctx.createLinearGradient(-armThick*0.5, 0, armThick*0.5, armLen*0.5);
-                mg.addColorStop(0, isBack ? SHIRT_D : SHIRT); mg.addColorStop(1, isBack ? SHIRT : SHIRT_L);
+                const mg = getLinearGradient(ctx, -armThick*0.5, 0, armThick*0.5, armLen*0.5, [
+                    [0, isBack ? SHIRT_D : SHIRT],
+                    [1, isBack ? SHIRT : SHIRT_L]
+                ], isBack ? SHIRT_D : SHIRT);
                 ctx.fillStyle = mg;
                 ctx.beginPath();
                 ctx.moveTo(-armThick*0.5, 0); ctx.lineTo(armThick*0.5, 0);
@@ -1353,8 +1530,11 @@
                 ctx.closePath(); ctx.fill();
                 ctx.translate(0, armLen*0.5);
                 let eb = 0.45; if (phase < 0) eb += Math.abs(phase)*0.8; ctx.rotate(eb);
-                const fa = ctx.createLinearGradient(-armThick*0.45, 0, armThick*0.45, foreLen);
-                fa.addColorStop(0, SKIN); fa.addColorStop(1, SKIN_D); ctx.fillStyle = fa;
+                const fa = getLinearGradient(ctx, -armThick*0.45, 0, armThick*0.45, foreLen, [
+                    [0, SKIN],
+                    [1, SKIN_D]
+                ], SKIN);
+                ctx.fillStyle = fa;
                 ctx.beginPath();
                 ctx.moveTo(-armThick*0.45, 0); ctx.lineTo(armThick*0.45, 0);
                 ctx.lineTo(armThick*0.32, foreLen*0.9); ctx.lineTo(-armThick*0.32, foreLen*0.9);
@@ -1370,8 +1550,11 @@
             // cuello
             ctx.fillStyle = SKIN_D; ctx.beginPath(); ctx.roundRect(-HEAD_R*0.26, 0, HEAD_R*0.52, HEAD_R*0.52, 3); ctx.fill();
             // cara
-            const faceGrad = ctx.createRadialGradient(HEAD_R*0.15, hCy2-HEAD_R*0.15, 1, 0, hCy2, HEAD_R*1.05);
-            faceGrad.addColorStop(0, SKIN_HL); faceGrad.addColorStop(0.55, SKIN); faceGrad.addColorStop(1, SKIN_D);
+            const faceGrad = getRadialGradient(ctx, HEAD_R*0.15, hCy2-HEAD_R*0.15, 1, 0, hCy2, HEAD_R*1.05, [
+                [0, SKIN_HL],
+                [0.55, SKIN],
+                [1, SKIN_D]
+            ], SKIN);
             ctx.fillStyle = faceGrad;
             ctx.beginPath(); ctx.ellipse(0, hCy2, HEAD_R*0.94, HEAD_R, 0.06, 0, Math.PI*2); ctx.fill();
             // oreja
@@ -1423,8 +1606,320 @@
             drawArm(false);
             ctx.restore();
         };
-        const drawTherian = (ctx, x, y, w, h, frame) => { /* IGUAL QUE EL ORIGINAL */
-            ctx.save(); ctx.translate(x + w * 0.5, y + h); const t = frame * 1.8; const runCycle = Math.sin(t) * 0.5; const runCycleCos = Math.cos(t) * 0.5; const runCycle2 = Math.sin(t) * 1.0; let currentBodyLean = -0.18 + runCycle2 * 0.06; if (!player.grounded) currentBodyLean = -0.08; const bodyBob = Math.abs(runCycleCos) * h * 0.05; const HEADR=h*0.13, TORSOH=h*0.30, TORSOW=w*0.30; const WAISTY=-h*0.44+bodyBob, HIPY=WAISTY+h*0.03; const SHOULDERY=WAISTY-TORSOH*0.95, HEADY=SHOULDERY-h*0.15; const SKIN='#D2956A', SKIND='#A0673A'; const SHIRT='#3D1C02', SHIRTL='#6B3310', SHIRTD='#1A0A00'; const SHORT='#1a1a1a', SHORTD='#0a0a0a'; const SHOEW='#F8F8F8', SHOES='#5D3A1A', SHOED='#3B1F0A'; const SOCK='#EEEEEE', FUR='#8B4513', FURD='#5C2D0A'; const thighLen=h*0.25, shinLen=h*0.23, legThick=w*0.13; const drawLeg = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack ? w*0.04 : 0, HIPY); ctx.rotate(currentBodyLean); ctx.rotate(phase*0.65 + runCycle2*0.18); const sg=ctx.createLinearGradient(-legThick*0.6,0,legThick*0.6,thighLen*0.55); sg.addColorStop(0, isBack?SHORTD:SHORT); sg.addColorStop(1, isBack?'#050505':SHORTD); ctx.fillStyle=sg; ctx.beginPath(); ctx.moveTo(-legThick*0.55,0); ctx.lineTo(legThick*0.55,0); ctx.lineTo(legThick*0.45,thighLen*0.55); ctx.lineTo(-legThick*0.45,thighLen*0.55); ctx.closePath(); ctx.fill(); ctx.translate(0,thighLen*0.55); let kb=0.18; if(phase>0) kb=phase*1.3; if(phase<-0.5) kb=0.5; ctx.rotate(kb); const shg=ctx.createLinearGradient(-legThick*0.5,0,legThick*0.5,shinLen); shg.addColorStop(0,FUR); shg.addColorStop(1,FURD); ctx.fillStyle=shg; ctx.beginPath(); ctx.moveTo(-legThick*0.5,0); ctx.lineTo(legThick*0.5,0); ctx.lineTo(legThick*0.38,shinLen*0.82); ctx.lineTo(-legThick*0.38,shinLen*0.82); ctx.closePath(); ctx.fill(); ctx.translate(0,shinLen*0.82); ctx.fillStyle=SOCK; ctx.beginPath(); ctx.roundRect(-legThick*0.4,0,legThick*0.8,shinLen*0.14,3); ctx.fill(); ctx.translate(0,shinLen*0.12); const sLen=legThick*2.2,sH=legThick*0.75,sOff=isBack?-legThick*0.2:legThick*0.1; ctx.fillStyle='#888'; ctx.beginPath(); ctx.roundRect(sOff-sLen*0.08,sH*0.65,sLen*1.05,sH*0.32,4); ctx.fill(); const sg2=ctx.createLinearGradient(sOff,0,sOff+sLen,sH); sg2.addColorStop(0,SHOEW); sg2.addColorStop(1,SHOED); ctx.fillStyle=sg2; ctx.beginPath(); ctx.moveTo(sOff,sH*0.65); ctx.lineTo(sOff+sLen*0.85,sH*0.65); ctx.bezierCurveTo(sOff+sLen*1.05,sH*0.65,sOff+sLen*1.05,sH*0.15,sOff+sLen*0.80,sH*0.1); ctx.lineTo(sOff+sLen*0.35,0); ctx.bezierCurveTo(sOff+sLen*0.1,-sH*0.05,sOff-sLen*0.05,sH*0.2,sOff,sH*0.65); ctx.closePath(); ctx.fill(); ctx.strokeStyle=SHOES; ctx.lineWidth=sH*0.22; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(sOff+sLen*0.28,sH*0.55); ctx.bezierCurveTo(sOff+sLen*0.55,sH*0.1,sOff+sLen*0.75,sH*0.12,sOff+sLen*0.82,sH*0.3); ctx.stroke(); ctx.lineCap='butt'; ctx.restore(); }; if(player.grounded){ ctx.save(); ctx.globalAlpha=0.18; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(0,-2,w*0.48+Math.abs(runCycle)*0.15,6,0,0,Math.PI*2); ctx.fill(); ctx.restore(); } ctx.save(); ctx.globalAlpha=0.78; drawLeg(true); ctx.restore(); ctx.save(); ctx.translate(-w*0.18, WAISTY); ctx.rotate(currentBodyLean); const tailWag = Math.sin(t*1.5)*0.55; ctx.rotate(-0.3 + tailWag); ctx.strokeStyle=FUR; ctx.lineWidth=w*0.09; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-w*0.15,-h*0.18,-w*0.05,-h*0.28); ctx.stroke(); ctx.strokeStyle='#D2956A'; ctx.lineWidth=w*0.05; ctx.beginPath(); ctx.moveTo(-w*0.08,-h*0.20); ctx.quadraticCurveTo(-w*0.14,-h*0.22,-w*0.05,-h*0.28); ctx.stroke(); ctx.restore(); ctx.save(); ctx.translate(0,WAISTY); ctx.rotate(currentBodyLean); ctx.fillStyle=SHORT; ctx.beginPath(); ctx.roundRect(-TORSOW*0.7,-4,TORSOW*1.4,14,4); ctx.fill(); const tg=ctx.createLinearGradient(-TORSOW*0.6,0,TORSOW*0.6,-TORSOH); tg.addColorStop(0,SHIRTD); tg.addColorStop(0.4,SHIRT); tg.addColorStop(1,SHIRTL); ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-TORSOW*0.6,0); ctx.lineTo(TORSOW*0.6,0); ctx.lineTo(TORSOW*0.65,-TORSOH); ctx.lineTo(-TORSOW*0.55,-TORSOH); ctx.closePath(); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.beginPath(); ctx.roundRect(-TORSOW*0.28,-TORSOH*0.72,TORSOW*0.56,TORSOH*0.38,3); ctx.fill(); ctx.fillStyle=SHIRTD; ctx.font=`bold ${Math.round(TORSOH*0.28)}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('T',0,-TORSOH*0.53); ctx.restore(); const armLen=h*0.22, foreLen=h*0.20, armThick=w*0.10; const drawArm = (isBack) => { const phase = isBack ? -runCycle : runCycle; ctx.save(); ctx.translate(isBack?w*0.04:0, SHOULDERY); ctx.rotate(currentBodyLean); ctx.rotate(-phase*0.8+0.3); const mg=ctx.createLinearGradient(-armThick*0.5,0,armThick*0.5,armLen*0.5); mg.addColorStop(0,isBack?SHIRTD:SHIRT); mg.addColorStop(1,isBack?SHIRT:SHIRTL); ctx.fillStyle=mg; ctx.beginPath(); ctx.moveTo(-armThick*0.5,0); ctx.lineTo(armThick*0.5,0); ctx.lineTo(armThick*0.4,armLen*0.5); ctx.lineTo(-armThick*0.4,armLen*0.5); ctx.closePath(); ctx.fill(); ctx.translate(0,armLen*0.5); let eb=0.45; if(phase>0) eb=Math.abs(phase*0.8); ctx.rotate(eb); const fa=ctx.createLinearGradient(-armThick*0.45,0,armThick*0.45,foreLen); fa.addColorStop(0,FUR); fa.addColorStop(1,FURD); ctx.fillStyle=fa; ctx.beginPath(); ctx.moveTo(-armThick*0.45,0); ctx.lineTo(armThick*0.45,0); ctx.lineTo(armThick*0.32,foreLen*0.9); ctx.lineTo(-armThick*0.32,foreLen*0.9); ctx.closePath(); ctx.fill(); ctx.fillStyle=FURD; ctx.beginPath(); ctx.ellipse(0,foreLen*0.9,armThick*0.40,armThick*0.35,0.3,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#1a0a00'; for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.ellipse(i*armThick*0.22,foreLen*1.0,armThick*0.08,armThick*0.13,0,0,Math.PI*2); ctx.fill(); } ctx.restore(); }; ctx.save(); ctx.globalAlpha=0.72; drawArm(true); ctx.restore(); drawLeg(false); ctx.save(); ctx.translate(w*0.05, HEADY); ctx.rotate(currentBodyLean*0.4); ctx.fillStyle=FUR; ctx.beginPath(); ctx.ellipse(-HEADR*0.45,-HEADR*1.05,HEADR*0.32,HEADR*0.52,-0.35,0,Math.PI*2); ctx.fill(); ctx.fillStyle=FURD; ctx.beginPath(); ctx.ellipse(-HEADR*0.45,-HEADR*1.05,HEADR*0.18,HEADR*0.36,-0.35,0,Math.PI*2); ctx.fill(); ctx.save(); ctx.translate(HEADR*0.28,-HEADR*1.10); ctx.rotate(Math.sin(t*0.9)*0.18); ctx.fillStyle=FUR; ctx.beginPath(); ctx.ellipse(0,0,HEADR*0.28,HEADR*0.48,0.25,0,Math.PI*2); ctx.fill(); ctx.fillStyle=FURD; ctx.beginPath(); ctx.ellipse(0,0,HEADR*0.16,HEADR*0.32,0.25,0,Math.PI*2); ctx.fill(); ctx.restore(); ctx.fillStyle=SKIND; ctx.beginPath(); ctx.roundRect(-HEADR*0.28,0,HEADR*0.56,HEADR*0.55,4); ctx.fill(); const hCy=-HEADR*0.5; const faceGrad=ctx.createRadialGradient(HEADR*0.2,hCy-HEADR*0.2,2,0,hCy,HEADR*1.05); faceGrad.addColorStop(0,SKIN); faceGrad.addColorStop(1,SKIND); ctx.fillStyle=faceGrad; ctx.beginPath(); ctx.ellipse(0,hCy,HEADR*0.95,HEADR,0.08,0,Math.PI*2); ctx.fill(); ctx.fillStyle=FUR; ctx.beginPath(); ctx.ellipse(-HEADR*0.52,hCy,HEADR*0.44,HEADR*0.82,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle=faceGrad; ctx.beginPath(); ctx.ellipse(HEADR*0.1,hCy,HEADR*0.68,HEADR*0.78,0.05,0,Math.PI*2); ctx.fill(); ctx.fillStyle=SKIND; ctx.beginPath(); ctx.ellipse(-HEADR*0.82,hCy+HEADR*0.08,HEADR*0.18,HEADR*0.25,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(HEADR*0.28,hCy-HEADR*0.1,HEADR*0.22,HEADR*0.14,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#1a0800'; ctx.beginPath(); ctx.arc(HEADR*0.38,hCy-HEADR*0.1,HEADR*0.10,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(HEADR*0.42,hCy-HEADR*0.15,HEADR*0.03,0,Math.PI*2); ctx.fill(); ctx.strokeStyle=FURD; ctx.lineWidth=HEADR*0.10; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(HEADR*0.1,hCy-HEADR*0.28); ctx.quadraticCurveTo(HEADR*0.35,hCy-HEADR*0.36,HEADR*0.56,hCy-HEADR*0.25); ctx.stroke(); const muzzleGrad=ctx.createRadialGradient(HEADR*0.72,hCy+HEADR*0.12,1,HEADR*0.70,hCy+HEADR*0.14,HEADR*0.36); muzzleGrad.addColorStop(0,SKIN); muzzleGrad.addColorStop(1,SKIND); ctx.fillStyle=muzzleGrad; ctx.beginPath(); ctx.ellipse(HEADR*0.70,hCy+HEADR*0.18,HEADR*0.36,HEADR*0.26,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#111'; ctx.beginPath(); ctx.ellipse(HEADR*0.90,hCy+HEADR*0.06,HEADR*0.13,HEADR*0.09,0.1,0,Math.PI*2); ctx.fill(); ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.ellipse(HEADR*0.84,hCy+HEADR*0.02,HEADR*0.04,HEADR*0.03,0,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#7B3A1A'; ctx.lineWidth=HEADR*0.09; ctx.lineCap='round'; if(player.isSmiling){ ctx.beginPath(); ctx.moveTo(HEADR*0.60,hCy+HEADR*0.28); ctx.quadraticCurveTo(HEADR*0.80,hCy+HEADR*0.44,HEADR*0.94,hCy+HEADR*0.28); ctx.stroke(); ctx.fillStyle='#E8607A'; ctx.beginPath(); ctx.ellipse(HEADR*0.80,hCy+HEADR*0.40,HEADR*0.13,HEADR*0.17,0,0,Math.PI*2); ctx.fill(); } else { ctx.beginPath(); ctx.moveTo(HEADR*0.60,hCy+HEADR*0.30); ctx.lineTo(HEADR*0.94,hCy+HEADR*0.26); ctx.stroke(); } ctx.fillStyle=FURD; ctx.beginPath(); ctx.arc(-HEADR*0.05,hCy-HEADR*1.0,HEADR*0.72,Math.PI,0); ctx.fill(); ctx.fillStyle=FUR; ctx.beginPath(); ctx.arc(-HEADR*0.05,hCy-HEADR*0.95,HEADR*0.60,Math.PI,0); ctx.fill(); ctx.restore(); drawArm(false); ctx.restore();
+        const drawTherian = (ctx, x, y, w, h, frame) => {
+            ctx.save();
+            ctx.translate(x + w * 0.5, y + h);
+            const t = frame * 1.8;
+            const runCycle = Math.sin(t) * 0.5;
+            const runCycleCos = Math.cos(t) * 0.5;
+            const runCycle2 = Math.sin(t) * 1.0;
+            let currentBodyLean = -0.18 + runCycle2 * 0.06;
+            if (!player.grounded) currentBodyLean = -0.08;
+            const bodyBob = Math.abs(runCycleCos) * h * 0.05;
+            const HEADR = h * 0.13, TORSOH = h * 0.30, TORSOW = w * 0.30;
+            const WAISTY = -h * 0.44 + bodyBob, HIPY = WAISTY + h * 0.03;
+            const SHOULDERY = WAISTY - TORSOH * 0.95, HEADY = SHOULDERY - h * 0.15;
+            const SKIN = '#D2956A', SKIND = '#A0673A';
+            const SHIRT = '#3D1C02', SHIRTL = '#6B3310', SHIRTD = '#1A0A00';
+            const SHORT = '#1a1a1a', SHORTD = '#0a0a0a';
+            const SHOEW = '#F8F8F8', SHOES = '#5D3A1A', SHOED = '#3B1F0A';
+            const SOCK = '#EEEEEE', FUR = '#8B4513', FURD = '#5C2D0A';
+            const thighLen = h * 0.25, shinLen = h * 0.23, legThick = w * 0.13;
+            const drawLeg = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save();
+                ctx.translate(isBack ? w * 0.04 : 0, HIPY);
+                ctx.rotate(currentBodyLean);
+                ctx.rotate(phase * 0.65 + runCycle2 * 0.18);
+                const sg = getLinearGradient(ctx, -legThick * 0.6, 0, legThick * 0.6, thighLen * 0.55, [
+                    [0, isBack ? SHORTD : SHORT],
+                    [1, isBack ? '#050505' : SHORTD]
+                ], isBack ? SHORTD : SHORT);
+                ctx.fillStyle = sg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick * 0.55, 0);
+                ctx.lineTo(legThick * 0.55, 0);
+                ctx.lineTo(legThick * 0.45, thighLen * 0.55);
+                ctx.lineTo(-legThick * 0.45, thighLen * 0.55);
+                ctx.closePath();
+                ctx.fill();
+                ctx.translate(0, thighLen * 0.55);
+                let kb = 0.18;
+                if (phase > 0) kb = phase * 1.3;
+                if (phase < -0.5) kb = 0.5;
+                ctx.rotate(kb);
+                const shg = getLinearGradient(ctx, -legThick * 0.5, 0, legThick * 0.5, shinLen, [
+                    [0, FUR],
+                    [1, FURD]
+                ], FUR);
+                ctx.fillStyle = shg;
+                ctx.beginPath();
+                ctx.moveTo(-legThick * 0.5, 0);
+                ctx.lineTo(legThick * 0.5, 0);
+                ctx.lineTo(legThick * 0.38, shinLen * 0.82);
+                ctx.lineTo(-legThick * 0.38, shinLen * 0.82);
+                ctx.closePath();
+                ctx.fill();
+                ctx.translate(0, shinLen * 0.82);
+                ctx.fillStyle = SOCK;
+                ctx.beginPath();
+                ctx.roundRect(-legThick * 0.4, 0, legThick * 0.8, shinLen * 0.14, 3);
+                ctx.fill();
+                ctx.translate(0, shinLen * 0.12);
+                const sLen = legThick * 2.2, sH = legThick * 0.75, sOff = isBack ? -legThick * 0.2 : legThick * 0.1;
+                ctx.fillStyle = '#888';
+                ctx.beginPath();
+                ctx.roundRect(sOff - sLen * 0.08, sH * 0.65, sLen * 1.05, sH * 0.32, 4);
+                ctx.fill();
+                const sg2 = getLinearGradient(ctx, sOff, 0, sOff + sLen, sH, [
+                    [0, SHOEW],
+                    [1, SHOED]
+                ], SHOEW);
+                ctx.fillStyle = sg2;
+                ctx.beginPath();
+                ctx.moveTo(sOff, sH * 0.65);
+                ctx.lineTo(sOff + sLen * 0.85, sH * 0.65);
+                ctx.bezierCurveTo(sOff + sLen * 1.05, sH * 0.65, sOff + sLen * 1.05, sH * 0.15, sOff + sLen * 0.80, sH * 0.1);
+                ctx.lineTo(sOff + sLen * 0.35, 0);
+                ctx.bezierCurveTo(sOff + sLen * 0.1, -sH * 0.05, sOff - sLen * 0.05, sH * 0.2, sOff, sH * 0.65);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = SHOES;
+                ctx.lineWidth = sH * 0.22;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(sOff + sLen * 0.28, sH * 0.55);
+                ctx.bezierCurveTo(sOff + sLen * 0.55, sH * 0.1, sOff + sLen * 0.75, sH * 0.12, sOff + sLen * 0.82, sH * 0.3);
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+                ctx.restore();
+            };
+            if (player.grounded) {
+                ctx.save();
+                ctx.globalAlpha = 0.18;
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(0, -2, w * 0.48 + Math.abs(runCycle) * 0.15, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.save();
+            ctx.globalAlpha = 0.78;
+            drawLeg(true);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(-w * 0.18, WAISTY);
+            ctx.rotate(currentBodyLean);
+            const tailWag = Math.sin(t * 1.5) * 0.55;
+            ctx.rotate(-0.3 + tailWag);
+            ctx.strokeStyle = FUR;
+            ctx.lineWidth = w * 0.09;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(-w * 0.15, -h * 0.18, -w * 0.05, -h * 0.28);
+            ctx.stroke();
+            ctx.strokeStyle = '#D2956A';
+            ctx.lineWidth = w * 0.05;
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.08, -h * 0.20);
+            ctx.quadraticCurveTo(-w * 0.14, -h * 0.22, -w * 0.05, -h * 0.28);
+            ctx.stroke();
+            ctx.restore();
+            ctx.save();
+            ctx.translate(0, WAISTY);
+            ctx.rotate(currentBodyLean);
+            ctx.fillStyle = SHORT;
+            ctx.beginPath();
+            ctx.roundRect(-TORSOW * 0.7, -4, TORSOW * 1.4, 14, 4);
+            ctx.fill();
+            const tg = getLinearGradient(ctx, -TORSOW * 0.6, 0, TORSOW * 0.6, -TORSOH, [
+                [0, SHIRTD],
+                [0.4, SHIRT],
+                [1, SHIRTL]
+            ], SHIRT);
+            ctx.fillStyle = tg;
+            ctx.beginPath();
+            ctx.moveTo(-TORSOW * 0.6, 0);
+            ctx.lineTo(TORSOW * 0.6, 0);
+            ctx.lineTo(TORSOW * 0.65, -TORSOH);
+            ctx.lineTo(-TORSOW * 0.55, -TORSOH);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.92)';
+            ctx.beginPath();
+            ctx.roundRect(-TORSOW * 0.28, -TORSOH * 0.72, TORSOW * 0.56, TORSOH * 0.38, 3);
+            ctx.fill();
+            ctx.fillStyle = SHIRTD;
+            ctx.font = `bold ${Math.round(TORSOH * 0.28)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('T', 0, -TORSOH * 0.53);
+            ctx.restore();
+            const armLen = h * 0.22, foreLen = h * 0.20, armThick = w * 0.10;
+            const drawArm = (isBack) => {
+                const phase = isBack ? -runCycle : runCycle;
+                ctx.save();
+                ctx.translate(isBack ? w * 0.04 : 0, SHOULDERY);
+                ctx.rotate(currentBodyLean);
+                ctx.rotate(-phase * 0.8 + 0.3);
+                const mg = getLinearGradient(ctx, -armThick * 0.5, 0, armThick * 0.5, armLen * 0.5, [
+                    [0, isBack ? SHIRTD : SHIRT],
+                    [1, isBack ? SHIRT : SHIRTL]
+                ], isBack ? SHIRTD : SHIRT);
+                ctx.fillStyle = mg;
+                ctx.beginPath();
+                ctx.moveTo(-armThick * 0.5, 0);
+                ctx.lineTo(armThick * 0.5, 0);
+                ctx.lineTo(armThick * 0.4, armLen * 0.5);
+                ctx.lineTo(-armThick * 0.4, armLen * 0.5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.translate(0, armLen * 0.5);
+                let eb = 0.45;
+                if (phase > 0) eb = Math.abs(phase * 0.8);
+                ctx.rotate(eb);
+                const fa = getLinearGradient(ctx, -armThick * 0.45, 0, armThick * 0.45, foreLen, [
+                    [0, FUR],
+                    [1, FURD]
+                ], FUR);
+                ctx.fillStyle = fa;
+                ctx.beginPath();
+                ctx.moveTo(-armThick * 0.45, 0);
+                ctx.lineTo(armThick * 0.45, 0);
+                ctx.lineTo(armThick * 0.32, foreLen * 0.9);
+                ctx.lineTo(-armThick * 0.32, foreLen * 0.9);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = FURD;
+                ctx.beginPath();
+                ctx.ellipse(0, foreLen * 0.9, armThick * 0.40, armThick * 0.35, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#1a0a00';
+                for (let i = -1; i <= 1; i++) {
+                    ctx.beginPath();
+                    ctx.ellipse(i * armThick * 0.22, foreLen * 1.0, armThick * 0.08, armThick * 0.13, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            };
+            ctx.save();
+            ctx.globalAlpha = 0.72;
+            drawArm(true);
+            ctx.restore();
+            drawLeg(false);
+            ctx.save();
+            ctx.translate(w * 0.05, HEADY);
+            ctx.rotate(currentBodyLean * 0.4);
+            ctx.fillStyle = FUR;
+            ctx.beginPath();
+            ctx.ellipse(-HEADR * 0.45, -HEADR * 1.05, HEADR * 0.32, HEADR * 0.52, -0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = FURD;
+            ctx.beginPath();
+            ctx.ellipse(-HEADR * 0.45, -HEADR * 1.05, HEADR * 0.18, HEADR * 0.36, -0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.save();
+            ctx.translate(HEADR * 0.28, -HEADR * 1.10);
+            ctx.rotate(Math.sin(t * 0.9) * 0.18);
+            ctx.fillStyle = FUR;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, HEADR * 0.28, HEADR * 0.48, 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = FURD;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, HEADR * 0.16, HEADR * 0.32, 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = SKIND;
+            ctx.beginPath();
+            ctx.roundRect(-HEADR * 0.28, 0, HEADR * 0.56, HEADR * 0.55, 4);
+            ctx.fill();
+            const hCy = -HEADR * 0.5;
+            const faceGrad = getRadialGradient(ctx, HEADR * 0.2, hCy - HEADR * 0.2, 2, 0, hCy, HEADR * 1.05, [
+                [0, SKIN],
+                [1, SKIND]
+            ], SKIN);
+            ctx.fillStyle = faceGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, hCy, HEADR * 0.95, HEADR, 0.08, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = FUR;
+            ctx.beginPath();
+            ctx.ellipse(-HEADR * 0.52, hCy, HEADR * 0.44, HEADR * 0.82, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = faceGrad;
+            ctx.beginPath();
+            ctx.ellipse(HEADR * 0.1, hCy, HEADR * 0.68, HEADR * 0.78, 0.05, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = SKIND;
+            ctx.beginPath();
+            ctx.ellipse(-HEADR * 0.82, hCy + HEADR * 0.08, HEADR * 0.18, HEADR * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(HEADR * 0.28, hCy - HEADR * 0.1, HEADR * 0.22, HEADR * 0.14, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#1a0800';
+            ctx.beginPath();
+            ctx.arc(HEADR * 0.38, hCy - HEADR * 0.1, HEADR * 0.10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(HEADR * 0.42, hCy - HEADR * 0.15, HEADR * 0.03, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = FURD;
+            ctx.lineWidth = HEADR * 0.10;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(HEADR * 0.1, hCy - HEADR * 0.28);
+            ctx.quadraticCurveTo(HEADR * 0.35, hCy - HEADR * 0.36, HEADR * 0.56, hCy - HEADR * 0.25);
+            ctx.stroke();
+            const muzzleGrad = getRadialGradient(ctx, HEADR * 0.72, hCy + HEADR * 0.12, 1, HEADR * 0.70, hCy + HEADR * 0.14, HEADR * 0.36, [
+                [0, SKIN],
+                [1, SKIND]
+            ], SKIN);
+            ctx.fillStyle = muzzleGrad;
+            ctx.beginPath();
+            ctx.ellipse(HEADR * 0.70, hCy + HEADR * 0.18, HEADR * 0.36, HEADR * 0.26, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.ellipse(HEADR * 0.90, hCy + HEADR * 0.06, HEADR * 0.13, HEADR * 0.09, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(HEADR * 0.84, hCy + HEADR * 0.02, HEADR * 0.04, HEADR * 0.03, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#7B3A1A';
+            ctx.lineWidth = HEADR * 0.09;
+            ctx.lineCap = 'round';
+            if (player.isSmiling) {
+                ctx.beginPath();
+                ctx.moveTo(HEADR * 0.60, hCy + HEADR * 0.28);
+                ctx.quadraticCurveTo(HEADR * 0.80, hCy + HEADR * 0.44, HEADR * 0.94, hCy + HEADR * 0.28);
+                ctx.stroke();
+                ctx.fillStyle = '#E8607A';
+                ctx.beginPath();
+                ctx.ellipse(HEADR * 0.80, hCy + HEADR * 0.40, HEADR * 0.13, HEADR * 0.17, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(HEADR * 0.60, hCy + HEADR * 0.30);
+                ctx.lineTo(HEADR * 0.94, hCy + HEADR * 0.26);
+                ctx.stroke();
+            }
+            ctx.fillStyle = FURD;
+            ctx.beginPath();
+            ctx.arc(-HEADR * 0.05, hCy - HEADR * 1.0, HEADR * 0.72, Math.PI, 0);
+            ctx.fill();
+            ctx.fillStyle = FUR;
+            ctx.beginPath();
+            ctx.arc(-HEADR * 0.05, hCy - HEADR * 0.95, HEADR * 0.60, Math.PI, 0);
+            ctx.fill();
+            ctx.restore();
+            drawArm(false);
+            ctx.restore();
         };
 
         const drawRedBull = (ctx, x, y, w, h, anim) => { /* IGUAL QUE EL ORIGINAL */
@@ -2059,6 +2554,7 @@
 
         const draw = () => {
             requestAnimationFrame(draw);
+            checkFPS(performance.now());
             ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             ctx.save();
@@ -2132,7 +2628,8 @@
         });
         window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
-        resize(); draw();
+        togglePerformanceMode(performanceMode);
+        draw();
 
         // ===== INSTRUCCIONES =====
         var instrTimer = null;
@@ -2154,13 +2651,7 @@
         is.addEventListener('click', function(e) { e.stopPropagation(); cerrarInstrucciones(); });
         is.addEventListener('touchend', function(e) { e.stopPropagation(); cerrarInstrucciones(); }, { passive: true });
     
-        (function() {
-            const field = document.getElementById('starField');
-            if (!field) return;
-            for (let i = 0; i < 60; i++) {
-                const s = document.createElement('div'); s.className = 'star'; s.style.left = Math.random() * 100 + '%'; s.style.top = Math.random() * 100 + '%'; s.style.setProperty('--dur', (1.5 + Math.random() * 3).toFixed(2) + 's'); s.style.setProperty('--delay', (Math.random() * 4).toFixed(2) + 's'); s.style.width = s.style.height = (2 + Math.random() * 3).toFixed(1) + 'px'; field.appendChild(s);
-            }
-        })();
+        initStars();
     </script>
 </body>
 </html>
