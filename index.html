@@ -281,8 +281,6 @@
         }
         /* Botón instrucciones */
         #instrBtn {
-    margin-top: clamp(4px,1vh,10px);
-    position: relative; z-index: 1;
     background: rgba(255,255,255,0.08);
     border: 2px solid rgba(255,215,0,0.6);
     border-radius: 50px;
@@ -303,11 +301,16 @@
             box-shadow: 0 0 20px rgba(255,215,0,0.4);
             transform: scale(1.05);
         }
+        .menu-btn-row {
+            margin-top: clamp(4px,1vh,10px);
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
         .perf-toggle-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 100000;
             background: rgba(255, 255, 255, 0.08);
             border: 2px solid rgba(255, 215, 0, 0.4);
             border-radius: 50px;
@@ -341,7 +344,6 @@
 </head>
 <body>
     <div id="gameContainer">
-        <button id="perfToggleBtn" class="perf-toggle-btn" onclick="togglePerformanceMode()">⚡ Rendimiento: OFF</button>
         <div id="characterSelect">
             <div class="star-field" id="starField"></div>
             <h1>🏃 CURSA DE<br>MOSSOS 5K</h1>
@@ -562,7 +564,10 @@
                     <p class="card-desc">El salvaje<br>Marrón & Negro</p>
                 </div>
             </div>
-            <button id="instrBtn" onclick="mostrarInstrucciones()">📋 Instrucciones</button>
+            <div class="menu-btn-row">
+                <button id="instrBtn" onclick="mostrarInstrucciones()">📋 Instrucciones</button>
+                <button id="perfToggleBtn" class="perf-toggle-btn" onclick="togglePerformanceMode()">⚡ Rendimiento: OFF</button>
+            </div>
             <p style="position:relative;z-index:1;margin-top:12px;font-family:'Montserrat',sans-serif;font-size:clamp(11px,2vw,14px);font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:1px;">❤️ made with love by Alejandro</p>
         </div>
 
@@ -607,6 +612,7 @@
         <div id="gameOver">
             <div id="gameOverText">¡INTRIAGO TE GANARÁ ASÍ!</div>
             <span>PUNTUACIÓN FINAL: <span id="finalScore" style="display:inline">0</span></span>
+            <div id="gameOverStats" style="font-size:0.42em;margin-top:10px;color:#C8DAEA;letter-spacing:1px;"></div>
         </div>
     </div>
 
@@ -708,8 +714,11 @@
         let audioCtx;
 
         function initAudio() {
-            if (!audioCtx) audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (!AudioContext) return; // navegador sin Web Audio: el juego sigue sin sonido
+            try {
+                if (!audioCtx) audioCtx = new AudioContext();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) { audioCtx = null; }
         }
 
         function playSound(type) {
@@ -748,6 +757,13 @@
                 gain.gain.setValueAtTime(0.2, t);
                 gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
                 osc.start(t); osc.stop(t + 0.3);
+            } else if (type === 'land') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(140, t);
+                osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+                gain.gain.setValueAtTime(0.06, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+                osc.start(t); osc.stop(t + 0.08);
             } else if (type === 'levelup') {
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(440, t);
@@ -768,16 +784,27 @@
         };
         let lives = 1;
         let invincibleFrames = 0;
-        const INVINCIBLE_FRAMES = 90; 
+        const INVINCIBLE_FRAMES = 90;
 
-        // Récord global
-        let highScore = parseInt(localStorage.getItem('mossos_highscore')) || 0;
-        document.getElementById('highScoreDisplay').textContent = highScore;
+        // Referencias DOM cacheadas (evita getElementById en el bucle del juego)
+        const $id = (id) => document.getElementById(id);
+        const ui = {
+            score: $id('score'), highScore: $id('highScoreDisplay'), level: $id('levelDisplay'),
+            lives: $id('livesDisplay'), gameOver: $id('gameOver'), gameOverText: $id('gameOverText'),
+            finalScore: $id('finalScore'), gameOverStats: $id('gameOverStats'), characterSelect: $id('characterSelect'),
+            instrScreen: $id('instrScreen'), title: $id('title')
+        };
+
+        // Récord global (localStorage puede no estar disponible en modo privado / WebView)
+        let highScore = 0;
+        try { highScore = parseInt(localStorage.getItem('mossos_highscore'), 10) || 0; } catch (e) {}
+        ui.highScore.textContent = highScore;
 
         // Constantes del juego
         const GAME_WIDTH = 1024;
         const GAME_HEIGHT = 700;
         const FPS = 60;
+        const STEP_MS = 1000 / FPS; // paso fijo de la lógica del juego
         const GRAVITY = 0.8;
         const JUMP_VELOCITY = -18.5; // Un poco más de salto para sentirlo mejor
         const GROUND_HEIGHT = 100;
@@ -815,32 +842,37 @@
         let dpr = 1;
 
         // Variables globales
-        let player = { x: 100, y: 0, width: 0, height: 0, vx: 0, vy: 0, grounded: true, jumpsLeft: 2, frame: 0, isSmiling: false, smileTimer: 0 };
+        let player = { x: 100, y: 0, width: 0, height: 0, vx: 0, vy: 0, grounded: true, jumpsLeft: 2, frame: 0, isSmiling: false, smileTimer: 0, landTimer: 0 };
         let obstacles = [], powerups = [], clouds = [], trees = [], mountains = [], particles = [], floatingTexts = [], score = 0, gameSpeed = 1, gameRunning = false;
         const RIVAL_DEFAULT = { x: 0, y: 0, width: 0, height: 0, frame: 0, visible: false, overtaken: false, overtakeAnim: 0, enterAnim: 0 };
         let rival = {...RIVAL_DEFAULT}, rival2 = {...RIVAL_DEFAULT}, rival0 = {...RIVAL_DEFAULT}, rival3 = {...RIVAL_DEFAULT};
-        let spawnTimeout, powerUpTimeout, updateTimeout, keys = {}, prevKeys = {}, touchJustPressed = false, gameTime = 0;
-        let currentLevelName = '', levelUpAnim = 0, screenShake = 0;
+        let obstacleTimer = 0, powerUpTimer = 0, keys = {}, prevJumpHeld = false, touchJustPressed = false, gameTime = 0;
+        let currentLevelName = '', levelUpAnim = 0, screenShake = 0, damageFlash = 0;
+        let damageVignette = null; // gradiente del flash de daño, creado una sola vez
 
         const initState = () => {
-            player = { x: 100, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, vx: 0, vy: 0, grounded: true, jumpsLeft: MAX_JUMPS, frame: 0, isSmiling: false, smileTimer: 0 };
+            player = { x: 100, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, vx: 0, vy: 0, grounded: true, jumpsLeft: MAX_JUMPS, frame: 0, isSmiling: false, smileTimer: 0, landTimer: 0 };
             obstacles = []; powerups = []; clouds = []; trees = []; mountains = []; particles = []; floatingTexts = [];
             score = 0; gameSpeed = BASE_SPEED; gameRunning = true; lives = 1; invincibleFrames = 0; updateLivesDisplay();
-            keys = {}; prevKeys = {}; touchJustPressed = false; gameTime = 0; screenShake = 0;
+            keys = {}; prevJumpHeld = false; touchJustPressed = false; gameTime = 0; screenShake = 0; damageFlash = 0;
+            obstacleTimer = 0; powerUpTimer = 0; freezeTimer = 0; fireworkParticles = []; jumpRings = [];
             currentLevelName = LEVELS[0].name; levelUpAnim = 0;
             rival = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0, enterAnim: 0 };
             rival2 = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0 };
             rival0 = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0 };
             rival3 = { x: GAME_WIDTH * 0.6, y: GAME_HEIGHT - GROUND_HEIGHT - PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE, frame: 0, visible: false, overtaken: false, overtakeAnim: 0 };
-            document.getElementById('gameOver').style.display = 'none';
-            document.getElementById('levelDisplay').textContent = LEVELS[0].name;
-            document.getElementById('highScoreDisplay').textContent = highScore;
+            ui.gameOver.style.display = 'none';
+            ui.level.textContent = LEVELS[0].name;
+            ui.highScore.textContent = highScore;
         };
 
         // Fuegos artificiales
         let fireworkParticles = [];
         let freezeTimer = 0;
         const FREEZE_FRAMES = 55;
+
+        // Anillos de aire del doble salto
+        let jumpRings = [];
 
         // Utilidades
         const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -1946,6 +1978,7 @@
             const signH = 110;
             const signX = cx - signW / 2;
             const radius = 10;
+            const sb = performanceMode ? 0 : 1; // sin sombras en modo rendimiento
 
             ctx.save();
 
@@ -1953,7 +1986,7 @@
 
             // === HALO DE RESPLANDOR EXTERIOR (neón ambiental) ===
             ctx.globalAlpha = glowIntense * 0.22;
-            ctx.shadowBlur = 60;
+            ctx.shadowBlur = 60 * sb;
             ctx.shadowColor = '#FFD700';
             ctx.fillStyle = 'rgba(255, 200, 0, 0.08)';
             ctx.beginPath();
@@ -1975,14 +2008,14 @@
 
             // Borde exterior dorado grueso
             ctx.globalAlpha = glowIntense;
-            ctx.shadowBlur = 12 * glow;
+            ctx.shadowBlur = 12 * glow * sb;
             ctx.shadowColor = '#FFD700';
             ctx.strokeStyle = '#b07800';
             ctx.lineWidth = 4;
             ctx.beginPath(); ctx.roundRect(signX, signY, signW, signH, radius); ctx.stroke();
 
             // Borde interior fino brillante
-            ctx.shadowBlur = 20 * glow;
+            ctx.shadowBlur = 20 * glow * sb;
             ctx.shadowColor = '#FFE566';
             ctx.strokeStyle = `rgba(255, 220, 60, ${0.7 * glow})`;
             ctx.lineWidth = 1.5;
@@ -1998,7 +2031,7 @@
 
             // ---- "BADALONA" grande ----
             ctx.save();
-            ctx.shadowBlur = 26;
+            ctx.shadowBlur = 26 * sb;
             ctx.shadowColor = '#FFD700';
             ctx.font = '900 italic 44px Montserrat, sans-serif';
             ctx.strokeStyle = 'rgba(0,0,0,0.9)';
@@ -2029,7 +2062,7 @@
             // Diamantes decorativos sobre la línea
             ctx.globalAlpha = glow * 0.8;
             ctx.fillStyle = '#FFD700';
-            ctx.shadowBlur = 6; ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 6 * sb; ctx.shadowColor = '#FFD700';
             [-120, -60, 0, 60, 120].forEach(offset => {
                 ctx.save();
                 ctx.translate(cx + offset, sepY);
@@ -2042,7 +2075,7 @@
             // ---- "La lucha de abril" en cursiva elegante ----
             ctx.globalAlpha = glowIntense * 0.95;
             ctx.save();
-            ctx.shadowBlur = 18;
+            ctx.shadowBlur = 18 * sb;
             ctx.shadowColor = '#FF9900';
             ctx.font = 'italic 700 20px Montserrat, sans-serif';
             ctx.strokeStyle = 'rgba(0,0,0,0.8)';
@@ -2071,17 +2104,26 @@
 
         const drawMountains = () => {
             const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
+            const isNight = nightFactor >= 0.5;
             mountains.forEach(m => {
                 const gw = m.width;
-                const bx = m.x;
+                // Coordenadas locales: el gradiente se cachea por edificio y
+                // sigue siendo válido mientras el edificio se desplaza.
+                ctx.save();
+                ctx.translate(m.x, 0);
+                const bx = 0;
                 const by = GAME_HEIGHT - GROUND_HEIGHT - m.height;
-                const bgrad = ctx.createLinearGradient(bx, by, bx + gw, by);
-                if (nightFactor < 0.5) {
-                    bgrad.addColorStop(0, '#7A8FA6'); bgrad.addColorStop(0.5, '#8BA0B4'); bgrad.addColorStop(1, '#6E8299');
-                } else {
-                    bgrad.addColorStop(0, '#1a2535'); bgrad.addColorStop(0.5, '#222d40'); bgrad.addColorStop(1, '#151e2d');
+                const gradKey = isNight ? '_gNight' : '_gDay';
+                if (!m[gradKey]) {
+                    const g = ctx.createLinearGradient(0, by, gw, by);
+                    if (!isNight) {
+                        g.addColorStop(0, '#7A8FA6'); g.addColorStop(0.5, '#8BA0B4'); g.addColorStop(1, '#6E8299');
+                    } else {
+                        g.addColorStop(0, '#1a2535'); g.addColorStop(0.5, '#222d40'); g.addColorStop(1, '#151e2d');
+                    }
+                    m[gradKey] = g;
                 }
-                ctx.fillStyle = bgrad;
+                ctx.fillStyle = m[gradKey];
                 ctx.beginPath();
                 ctx.moveTo(bx, GAME_HEIGHT - GROUND_HEIGHT + 5);
                 ctx.lineTo(bx, by + m.roofH);
@@ -2112,9 +2154,11 @@
                             ctx.fillStyle = 'rgba(10, 20, 35, 0.8)';
                         }
                         ctx.fillRect(wx, wy, winW, winH);
-                        ctx.strokeStyle = nightFactor > 0.3 ? 'rgba(80,60,20,0.4)' : 'rgba(90,110,130,0.4)';
-                        ctx.lineWidth = 0.8;
-                        ctx.strokeRect(wx, wy, winW, winH);
+                        if (!performanceMode) {
+                            ctx.strokeStyle = nightFactor > 0.3 ? 'rgba(80,60,20,0.4)' : 'rgba(90,110,130,0.4)';
+                            ctx.lineWidth = 0.8;
+                            ctx.strokeRect(wx, wy, winW, winH);
+                        }
                     }
                 }
                 ctx.fillStyle = nightFactor < 0.5 ? '#5a6878' : '#111820';
@@ -2123,6 +2167,7 @@
                 ctx.strokeStyle = nightFactor < 0.5 ? 'rgba(50,70,90,0.3)' : 'rgba(0,0,0,0.5)';
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(bx, by + m.roofH, gw, m.height - m.roofH);
+                ctx.restore();
             });
         };
 
@@ -2146,27 +2191,50 @@
             ctx.save(); const cx = x + width / 2; const bTop = y + height * 0.28; const bH = height * 0.72; const bW = width; const bBot = bTop + bH; const drawFlame = (fx, fBaseY, fw, fh, phase) => { ctx.save(); const flameGrad = ctx.createRadialGradient(fx, fBaseY - fh*0.3, 1, fx, fBaseY - fh*0.5, fh); flameGrad.addColorStop(0, 'rgba(255,255,180,0.95)'); flameGrad.addColorStop(0.25,'rgba(255,220,0,0.9)'); flameGrad.addColorStop(0.55,'rgba(255,100,0,0.85)'); flameGrad.addColorStop(1, 'rgba(200,20,0,0)'); ctx.fillStyle = flameGrad; const waver = Math.sin(anim * 4 + phase) * fw * 0.18; const waver2 = Math.sin(anim * 5.5 + phase + 1) * fw * 0.12; ctx.beginPath(); ctx.moveTo(fx - fw*0.5, fBaseY); ctx.bezierCurveTo( fx - fw*0.4 + waver, fBaseY - fh*0.4, fx - fw*0.1 + waver2, fBaseY - fh*0.75, fx, fBaseY - fh ); ctx.bezierCurveTo( fx + fw*0.1 - waver2, fBaseY - fh*0.75, fx + fw*0.4 - waver, fBaseY - fh*0.4, fx + fw*0.5, fBaseY ); ctx.closePath(); ctx.fill(); ctx.restore(); }; drawFlame(cx, bTop + 4, bW * 0.7, height * 0.35, 0); drawFlame(cx - bW * 0.2, bTop + 8, bW * 0.45, height * 0.26, 1.2); drawFlame(cx + bW * 0.2, bTop + 6, bW * 0.42, height * 0.28, 2.4); ctx.save(); ctx.globalAlpha = 0.12 + Math.sin(anim * 3) * 0.07; const heatGlow = ctx.createRadialGradient(cx, bTop, 5, cx, bTop - height*0.15, bW*0.9); heatGlow.addColorStop(0, 'rgba(255,160,0,1)'); heatGlow.addColorStop(1, 'rgba(255,80,0,0)'); ctx.fillStyle = heatGlow; ctx.beginPath(); ctx.ellipse(cx, bTop, bW * 0.9, height * 0.22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(cx + 5, bBot + 3, bW * 0.52, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); const metalGrad = ctx.createLinearGradient(x, bTop, x + bW, bTop); metalGrad.addColorStop(0, '#1a1a1a'); metalGrad.addColorStop(0.15, '#3a3a3a'); metalGrad.addColorStop(0.45, '#555'); metalGrad.addColorStop(0.7, '#2e2e2e'); metalGrad.addColorStop(1, '#111'); ctx.fillStyle = metalGrad; ctx.beginPath(); ctx.moveTo(x + bW*0.08, bTop); ctx.bezierCurveTo(x - bW*0.05, bTop + bH*0.3, x - bW*0.05, bTop + bH*0.7, x + bW*0.08, bBot); ctx.lineTo(x + bW*0.92, bBot); ctx.bezierCurveTo(x + bW*1.05, bTop + bH*0.7, x + bW*1.05, bTop + bH*0.3, x + bW*0.92, bTop); ctx.closePath(); ctx.fill(); ctx.save(); ctx.globalAlpha = 0.18; const leftShine = ctx.createLinearGradient(x, bTop, x + bW*0.25, bTop); leftShine.addColorStop(0, 'rgba(255,255,255,0.0)'); leftShine.addColorStop(1, 'rgba(255,255,255,0.6)'); ctx.fillStyle = leftShine; ctx.beginPath(); ctx.moveTo(x + bW*0.08, bTop); ctx.bezierCurveTo(x - bW*0.05, bTop+bH*0.3, x - bW*0.05, bTop+bH*0.7, x + bW*0.08, bBot); ctx.lineTo(x + bW*0.28, bBot); ctx.bezierCurveTo(x + bW*0.18, bTop+bH*0.7, x + bW*0.18, bTop+bH*0.3, x + bW*0.28, bTop); ctx.closePath(); ctx.fill(); ctx.restore(); const ringY = [bTop + bH*0.18, bTop + bH*0.5, bTop + bH*0.82]; ringY.forEach(ry => { const ringGrad = ctx.createLinearGradient(x, ry, x+bW, ry); ringGrad.addColorStop(0, '#8B6914'); ringGrad.addColorStop(0.3, '#D4A017'); ringGrad.addColorStop(0.6, '#F5C518'); ringGrad.addColorStop(1, '#8B6914'); ctx.strokeStyle = ringGrad; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x + bW*0.07, ry); ctx.bezierCurveTo(x - bW*0.04, ry+3, x - bW*0.04, ry+3, x + bW*0.07, ry+4); ctx.moveTo(x + bW*0.07, ry); ctx.lineTo(x + bW*0.93, ry); ctx.bezierCurveTo(x + bW*1.04, ry+3, x + bW*1.04, ry+3, x + bW*0.93, ry+4); ctx.lineTo(x + bW*0.07, ry+4); ctx.stroke(); [-0.3, 0.3].forEach(offset => { ctx.fillStyle = '#c8940d'; ctx.beginPath(); ctx.arc(cx + bW*offset, ry + 2, 3, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#7a5a00'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(cx + bW*offset - 2, ry+2); ctx.lineTo(cx + bW*offset + 2, ry+2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx + bW*offset, ry); ctx.lineTo(cx + bW*offset, ry+4); ctx.stroke(); }); }); ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1; [-0.22, 0, 0.22].forEach(off => { ctx.beginPath(); ctx.moveTo(cx + off*bW, bTop); ctx.lineTo(cx + off*bW, bBot); ctx.stroke(); }); const lidGrad = ctx.createRadialGradient(cx - bW*0.1, bTop + 4, 2, cx, bTop, bW*0.55); lidGrad.addColorStop(0, '#555'); lidGrad.addColorStop(0.6, '#2a2a2a'); lidGrad.addColorStop(1, '#111'); ctx.fillStyle = lidGrad; ctx.beginPath(); ctx.ellipse(cx, bTop, bW*0.5, bH*0.065, 0, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#D4A017'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(cx, bTop, bW*0.5, bH*0.065, 0, 0, Math.PI*2); ctx.stroke(); ctx.save(); ctx.font = `bold ${bW * 0.22}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,180,0,0.15)'; ctx.fillRect(cx - bW*0.38, bTop + bH*0.38, bW*0.76, bH*0.24); ctx.fillStyle = '#F5C518'; ctx.shadowBlur = 6; ctx.shadowColor = '#FF6D00'; ctx.fillText('⚠', cx, bTop + bH*0.5); ctx.shadowBlur = 0; ctx.restore(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + bW*0.08, bTop); ctx.bezierCurveTo(x - bW*0.05, bTop+bH*0.3, x - bW*0.05, bTop+bH*0.7, x + bW*0.08, bBot); ctx.lineTo(x + bW*0.92, bBot); ctx.bezierCurveTo(x + bW*1.05, bTop+bH*0.7, x + bW*1.05, bTop+bH*0.3, x + bW*0.92, bTop); ctx.closePath(); ctx.stroke(); ctx.restore();
         };
 
+        // Estrellas nocturnas (posiciones fijas, brillo titilante)
+        const NIGHT_STARS = [];
+        for (let i = 0; i < 44; i++) {
+            NIGHT_STARS.push({ x: Math.random() * GAME_WIDTH, y: Math.random() * (GAME_HEIGHT - GROUND_HEIGHT - 180), tw: Math.random() * Math.PI * 2, r: 0.7 + Math.random() * 1.3 });
+        }
+
+        // El gradiente del cielo solo se reconstruye cuando cambia la fase día/noche
+        let skyCache = { key: -1, grad: null, haze: null };
         const drawSky = () => {
             const nightFactor = Math.min(gameTime / NIGHT_TIME, 1);
-            const skyColor = interpolateColor(SKY_DAY, SKY_NIGHT, nightFactor);
-            // Sky gradient - lighter at horizon (urban haze)
-            const skyGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
-            skyGrad.addColorStop(0, skyColor);
-            if (nightFactor < 0.5) {
-                skyGrad.addColorStop(0.7, interpolateColor('#C5D8EC', '#0a1030', nightFactor));
-                skyGrad.addColorStop(1, interpolateColor('#D8E8F0', '#0e1535', nightFactor));
-            } else {
-                skyGrad.addColorStop(0.7, interpolateColor('#b0c8e0', '#0d1528', nightFactor));
-                skyGrad.addColorStop(1, interpolateColor('#c0d0e0', '#161e30', nightFactor));
+            const key = Math.round(nightFactor * 120);
+            if (skyCache.key !== key) {
+                const skyGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT - GROUND_HEIGHT);
+                skyGrad.addColorStop(0, interpolateColor(SKY_DAY, SKY_NIGHT, nightFactor));
+                if (nightFactor < 0.5) {
+                    skyGrad.addColorStop(0.7, interpolateColor('#C5D8EC', '#0a1030', nightFactor));
+                    skyGrad.addColorStop(1, interpolateColor('#D8E8F0', '#0e1535', nightFactor));
+                } else {
+                    skyGrad.addColorStop(0.7, interpolateColor('#b0c8e0', '#0d1528', nightFactor));
+                    skyGrad.addColorStop(1, interpolateColor('#c0d0e0', '#161e30', nightFactor));
+                }
+                const hazeGrad = ctx.createLinearGradient(0, GAME_HEIGHT - GROUND_HEIGHT - 80, 0, GAME_HEIGHT - GROUND_HEIGHT);
+                const hazeAlpha = nightFactor < 0.4 ? 0.12 : 0.22;
+                hazeGrad.addColorStop(0, 'rgba(180, 170, 140, 0)');
+                hazeGrad.addColorStop(1, 'rgba(180, 170, 140, ' + hazeAlpha + ')');
+                skyCache = { key, grad: skyGrad, haze: hazeGrad };
             }
-            ctx.fillStyle = skyGrad;
+            ctx.fillStyle = skyCache.grad;
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            // Estrellas al caer la noche
+            if (nightFactor > 0.45) {
+                const starAlpha = Math.min(1, (nightFactor - 0.45) / 0.4);
+                const count = performanceMode ? 20 : NIGHT_STARS.length;
+                ctx.save();
+                ctx.fillStyle = '#FFFFFF';
+                for (let i = 0; i < count; i++) {
+                    const s = NIGHT_STARS[i];
+                    ctx.globalAlpha = starAlpha * (0.35 + 0.45 * (0.5 + 0.5 * Math.sin(gameTime * 2.2 + s.tw)));
+                    ctx.fillRect(s.x, s.y, s.r * 2, s.r * 2);
+                }
+                ctx.restore();
+            }
             // Urban haze near horizon
-            const hazeGrad = ctx.createLinearGradient(0, GAME_HEIGHT - GROUND_HEIGHT - 80, 0, GAME_HEIGHT - GROUND_HEIGHT);
-            const hazeAlpha = nightFactor < 0.4 ? 0.12 : 0.22;
-            hazeGrad.addColorStop(0, 'rgba(180, 170, 140, 0)');
-            hazeGrad.addColorStop(1, 'rgba(180, 170, 140, ' + hazeAlpha + ')');
-            ctx.fillStyle = hazeGrad;
+            ctx.fillStyle = skyCache.haze;
             ctx.fillRect(0, GAME_HEIGHT - GROUND_HEIGHT - 80, GAME_WIDTH, 80);
         };
 
@@ -2186,11 +2254,11 @@
             const x = 150; const y = 80 + pulse;
             if (nightFactor < 0.5) {
                 const sunFactor = 1 - nightFactor * 2;
-                ctx.shadowBlur = 30 * sunFactor; ctx.shadowColor = SUN_COLOR; ctx.fillStyle = SUN_COLOR;
+                ctx.shadowBlur = performanceMode ? 0 : 30 * sunFactor; ctx.shadowColor = SUN_COLOR; ctx.fillStyle = SUN_COLOR;
                 ctx.beginPath(); ctx.arc(x, y, 40, 0, Math.PI*2); ctx.fill();
             } else {
                 const moonFactor = (nightFactor - 0.5) * 2;
-                ctx.shadowBlur = 20; ctx.shadowColor = '#FFF'; ctx.fillStyle = MOON_COLOR;
+                ctx.shadowBlur = performanceMode ? 0 : 20; ctx.shadowColor = '#FFF'; ctx.fillStyle = MOON_COLOR;
                 ctx.beginPath(); ctx.arc(x, y, 35, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#CCC'; ctx.beginPath(); ctx.arc(x-10, y-8, 7, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#AAA'; ctx.beginPath(); ctx.arc(x+12, y+5, 5, 0, Math.PI*2); ctx.fill();
@@ -2301,6 +2369,7 @@
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, t.life);
                 ctx.fillStyle = t.color || '#FFD700';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
                 ctx.font = 'bold 24px Montserrat';
                 ctx.shadowBlur = 4; ctx.shadowColor = '#000';
                 ctx.fillText(t.text, t.x, t.y);
@@ -2319,13 +2388,75 @@
             }
         };
 
+        // ── Capa de efectos del personaje (se dibuja detrás del corredor) ──
+        const drawPlayerFX = () => {
+            const px = player.x + player.width / 2;
+            const pyc = player.y + player.height * 0.55;
+            // Aura dorada mientras dura la invencibilidad
+            if (invincibleFrames > 0) {
+                const pulse = 0.75 + Math.sin(gameTime * 18) * 0.25;
+                ctx.save();
+                ctx.globalAlpha = 0.38 * pulse * Math.min(1, invincibleFrames / 20);
+                ctx.fillStyle = getRadialGradient(ctx, px, pyc, 8, px, pyc, player.width * 0.78, [
+                    [0, 'rgba(255,238,160,0.9)'],
+                    [0.6, 'rgba(255,215,0,0.35)'],
+                    [1, 'rgba(255,215,0,0)']
+                ], 'rgba(255,222,80,0.35)');
+                ctx.beginPath(); ctx.arc(px, pyc, player.width * 0.78, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+            // Líneas de velocidad detrás del corredor
+            if (gameSpeed > 16) {
+                const intensity = Math.min(1, (gameSpeed - 16) / 18);
+                ctx.save();
+                ctx.lineCap = 'round';
+                for (let i = 0; i < 4; i++) {
+                    const ly = player.y + player.height * (0.18 + i * 0.21) + Math.sin(gameTime * 10 + i * 2.1) * 6;
+                    const len = player.width * (0.45 + i * 0.12) * intensity;
+                    const lx = player.x - 6 - Math.sin(gameTime * 13 + i) * 5;
+                    ctx.strokeStyle = getLinearGradient(ctx, lx - len, ly, lx, ly, [
+                        [0, 'rgba(255,255,255,0)'],
+                        [1, 'rgba(255,255,255,' + (0.38 * intensity).toFixed(2) + ')']
+                    ], 'rgba(255,255,255,' + (0.22 * intensity).toFixed(2) + ')');
+                    ctx.lineWidth = 3.5 - i * 0.5;
+                    ctx.beginPath(); ctx.moveTo(lx - len, ly); ctx.lineTo(lx, ly); ctx.stroke();
+                }
+                ctx.restore();
+            }
+            // Sombra proyectada en el suelo durante el salto
+            if (!player.grounded) {
+                const groundY = GAME_HEIGHT - GROUND_HEIGHT;
+                const alt = Math.min(1, (groundY - (player.y + player.height)) / 260);
+                ctx.save();
+                ctx.globalAlpha = 0.16 * (1 - alt * 0.65);
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(px, groundY - 2, player.width * 0.34 * (1 - alt * 0.4), 5.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        };
+
+        const drawJumpRings = () => {
+            for (let i = jumpRings.length - 1; i >= 0; i--) {
+                const r = jumpRings[i];
+                ctx.save();
+                ctx.globalAlpha = r.alpha;
+                ctx.strokeStyle = '#BFE8FF';
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.ellipse(r.x, r.y, r.r, r.r * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
+                ctx.restore();
+                r.r += 4; r.alpha -= 0.06; r.x -= gameSpeed * 0.3;
+                if (r.alpha <= 0) jumpRings.splice(i, 1);
+            }
+        };
+
         // ───────────────────────────────────────────────────────────────────────────
         // LÓGICA DEL JUEGO
         // ───────────────────────────────────────────────────────────────────────────
         const updatePlayer = () => {
-            const jumpPressed = keys['Space'] || keys['ArrowUp'] || keys['KeyW'];
-            const prevJumpPressed = prevKeys['Space'] || prevKeys['ArrowUp'] || prevKeys['KeyW'];
-            const justPressedJump = (jumpPressed && !prevJumpPressed) || touchJustPressed;
+            const jumpPressed = !!(keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
+            const justPressedJump = (jumpPressed && !prevJumpHeld) || touchJustPressed;
 
             if (justPressedJump && player.jumpsLeft > 0) {
                 initAudio(); // Initialize audio context on first jump
@@ -2340,18 +2471,45 @@
                     const a = Math.random()*Math.PI*2;
                     particles.push({ x: player.x+player.width/2, y: player.y+player.height, vx: Math.cos(a)*3, vy: Math.sin(a)*3+1, life: 1, color });
                 }
+                // Anillo de aire bajo los pies en el doble salto
+                if (isDouble) jumpRings.push({ x: player.x + player.width * 0.5, y: player.y + player.height, r: 14, alpha: 0.8 });
             }
 
-            prevKeys = { ...keys };
+            prevJumpHeld = jumpPressed;
             touchJustPressed = false;
+            const wasGrounded = player.grounded;
             player.vy += GRAVITY;
             player.y += player.vy;
             if (player.y >= GAME_HEIGHT - GROUND_HEIGHT - player.height) {
+                const impactVy = player.vy;
                 player.y = GAME_HEIGHT - GROUND_HEIGHT - player.height;
                 player.vy = 0; player.grounded = true; player.jumpsLeft = MAX_JUMPS;
+                if (!wasGrounded) {
+                    // Aterrizaje: squash breve + nube de polvo + golpe seco
+                    player.landTimer = 8;
+                    if (impactVy > 10) playSound('land');
+                    for (let i = 0; i < 6; i++) {
+                        particles.push({
+                            x: player.x + player.width * 0.5 + (Math.random() - 0.5) * 36,
+                            y: GAME_HEIGHT - GROUND_HEIGHT + 4,
+                            vx: (Math.random() - 0.5) * 4 - gameSpeed * 0.25,
+                            vy: -Math.random() * 1.6,
+                            life: 0.6, color: 'rgba(165,155,145,0.55)', size: 4
+                        });
+                    }
+                }
             }
+            if (player.landTimer > 0) player.landTimer--;
             player.frame += 0.2;
             if (player.isSmiling) { player.smileTimer--; if (player.smileTimer <= 0) player.isSmiling = false; }
+            // Gotas de sudor a velocidades altas
+            if (gameSpeed > 24 && Math.random() < 0.07) {
+                particles.push({
+                    x: player.x + player.width * 0.62, y: player.y + player.height * 0.16,
+                    vx: -gameSpeed * 0.35 - Math.random() * 2, vy: -1.5 - Math.random() * 1.5,
+                    life: 0.7, color: 'rgba(150,215,255,0.85)', size: 3
+                });
+            }
             
             // Trail effect if invincible or high speed
             if (gameSpeed > 20 || invincibleFrames > 0) {
@@ -2367,7 +2525,6 @@
         };
 
         const spawnObstacle = () => {
-            if (!gameRunning) return;
             const lvl = getCurrentLevel();
             const BASE_W = 65, BASE_H_MIN = 95, BASE_H_MAX = 200;
             const s = lvl.sizeScale;
@@ -2380,19 +2537,27 @@
 
             spawnOne();
             if (Math.random() < lvl.double) spawnOne(Math.round(randomInt(BASE_W * 0.8, BASE_W * 1.3) * s) + randomInt(15, 30));
-            spawnTimeout = setTimeout(spawnObstacle, randomInt(lvl.spawnMin, lvl.spawnMax));
+            obstacleTimer = randomInt(lvl.spawnMin, lvl.spawnMax);
         };
 
         const spawnPowerUp = () => {
-            if (!gameRunning) return;
-            powerUpTimeout = setTimeout(spawnPowerUp, randomInt(3000, 6000));
             const size = 60;
             powerups.push({ x: GAME_WIDTH, y: GAME_HEIGHT - GROUND_HEIGHT - size - randomInt(0, 200), width: size, height: size, vx: -gameSpeed, anim: 0 });
+            powerUpTimer = randomInt(3000, 6000);
+        };
+
+        // Los spawns avanzan con el tiempo de juego: se pausan junto a la lógica
+        // (freeze de fuegos artificiales, pestaña oculta) y no se apilan.
+        const updateSpawns = () => {
+            obstacleTimer -= STEP_MS;
+            if (obstacleTimer <= 0) spawnObstacle();
+            powerUpTimer -= STEP_MS;
+            if (powerUpTimer <= 0) spawnPowerUp();
         };
 
         const takeDamage = () => {
             playSound('hit');
-            screenShake = 15;
+            screenShake = 15; damageFlash = 14;
             if (lives > 1) {
                 lives--; invincibleFrames = INVINCIBLE_FRAMES; updateLivesDisplay();
                 for (let k = 0; k < 15; k++) {
@@ -2423,7 +2588,7 @@
             const lvl = getCurrentLevel();
             if (lvl.name !== currentLevelName) {
                 currentLevelName = lvl.name; levelUpAnim = 180;
-                document.getElementById('levelDisplay').textContent = lvl.name;
+                ui.level.textContent = lvl.name;
                 playSound('levelup');
             }
             const targetSpeed = lvl.speed;
@@ -2474,29 +2639,27 @@
         const gameOver = () => {
             gameRunning = false;
             let isNewHighScore = false;
-            
+
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('mossos_highscore', highScore);
+                try { localStorage.setItem('mossos_highscore', highScore); } catch (e) {}
                 isNewHighScore = true;
             }
-            
-            document.getElementById('highScoreDisplay').textContent = highScore;
-            document.getElementById('finalScore').textContent = score;
-            document.getElementById('gameOverText').textContent = isNewHighScore ? '¡NUEVO RÉCORD!' : '¡INTRIAGO TE GANARÁ ASÍ!';
-            document.getElementById('gameOver').style.display = 'block';
-            playSound('hit');
-            
+
+            ui.highScore.textContent = highScore;
+            ui.finalScore.textContent = score;
+            ui.gameOverText.textContent = isNewHighScore ? '¡NUEVO RÉCORD!' : '¡INTRIAGO TE GANARÁ ASÍ!';
+            ui.gameOverStats.textContent = 'NIVEL ' + currentLevelName + '  ·  ' + Math.floor(gameTime) + ' s';
+            ui.gameOver.style.display = 'block';
+
             setTimeout(() => {
-                document.getElementById('gameOver').style.display = 'none';
-                clearTimeout(spawnTimeout); clearTimeout(updateTimeout); clearTimeout(powerUpTimeout);
-                document.getElementById('characterSelect').style.display = 'flex';
-            }, 2500); 
+                ui.gameOver.style.display = 'none';
+                ui.characterSelect.style.display = 'flex';
+            }, 2500);
         };
 
         const reset = () => {
-            clearTimeout(spawnTimeout); clearTimeout(updateTimeout); clearTimeout(powerUpTimeout);
-            initState(); initBackground(); update(); spawnObstacle(); spawnPowerUp();
+            initState(); initBackground();
         };
 
         const triggerFireworks = () => {
@@ -2518,23 +2681,30 @@
         };
 
         const drawFireworks = () => {
-            fireworkParticles.forEach(p => { ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+            if (fireworkParticles.length === 0) return;
+            ctx.save();
+            const useShadow = !performanceMode;
+            if (useShadow) ctx.shadowBlur = 10;
+            for (const p of fireworkParticles) {
+                ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+                if (useShadow) ctx.shadowColor = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
         };
 
-        const update = () => {
-            if (!gameRunning) return;
-            updateTimeout = setTimeout(update, 1000/FPS);
+        // Un paso de lógica a 60 Hz (independiente de la tasa de refresco de la pantalla)
+        const stepGame = () => {
             if (freezeTimer > 0) { freezeTimer--; updateFireworks(); if (freezeTimer === 0) fireworkParticles = []; return; }
-            
+
+            updateSpawns();
             updatePlayer(); updateObstacles(); updatePowerUps(); updateRivals(); updateBackground();
-            document.getElementById('score').textContent = score;
-            
-            // Refrescar récord visualmente si lo superamos en vivo
-            if(score > highScore) {
-                document.getElementById('highScoreDisplay').textContent = score;
-            }
-            
+            if (!gameRunning) return; // takeDamage puede terminar la partida en este paso
+
             score += 1;
+            ui.score.textContent = score;
+            // Refrescar récord visualmente si lo superamos en vivo
+            if (score > highScore) ui.highScore.textContent = score;
         };
 
         const drawLevelUpBanner = () => {
@@ -2552,15 +2722,29 @@
             ctx.shadowBlur = 0; ctx.restore();
         };
 
-        const draw = () => {
+        // Bucle principal: render con rAF + lógica acumulada a paso fijo.
+        // Al ocultarse la pestaña, rAF se pausa y la partida queda congelada
+        // (el clamp evita una avalancha de pasos al volver).
+        let lastFrameTime = 0, accumulator = 0;
+        const draw = (now) => {
             requestAnimationFrame(draw);
-            checkFPS(performance.now());
+            if (now === undefined) now = performance.now();
+            checkFPS(now);
+            if (lastFrameTime === 0) lastFrameTime = now;
+            accumulator += Math.min(now - lastFrameTime, 250);
+            lastFrameTime = now;
+            if (gameRunning) {
+                while (accumulator >= STEP_MS && gameRunning) { stepGame(); accumulator -= STEP_MS; }
+            } else {
+                accumulator = 0;
+            }
             ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             ctx.save();
-            // Screen Shake Effect
-            if(screenShake > 0) {
-                ctx.translate(randomInt(-5, 5), randomInt(-5, 5));
+            // Screen shake con decaimiento (amplitud proporcional al tiempo restante)
+            if (screenShake > 0) {
+                const amp = Math.min(6, screenShake * 0.55);
+                ctx.translate((Math.random() * 2 - 1) * amp, (Math.random() * 2 - 1) * amp);
                 screenShake--;
             }
 
@@ -2568,18 +2752,48 @@
             clouds.forEach(c => drawCloud(c.x, c.y, c.size)); trees.forEach(t => drawTree(t.x, t.y, t.width, t.height)); drawGround();
             obstacles.forEach(obs => drawFireBarrel(ctx, obs.x, obs.y, obs.width, obs.height, obs.anim||0));
 
-            powerups.forEach(p => drawRedBull(ctx, p.x, p.y, p.width, p.height, p.anim));
+            powerups.forEach(p => {
+                // Flotación + halo dorado para que el powerup se lea a cualquier velocidad
+                const bobY = Math.sin(p.anim * 2.2) * 6;
+                const hx = p.x + p.width / 2, hy = p.y + bobY + p.height / 2;
+                ctx.save();
+                ctx.globalAlpha = 0.30 + Math.sin(p.anim * 3) * 0.10;
+                ctx.fillStyle = getRadialGradient(ctx, hx, hy, 4, hx, hy, p.width * 0.95, [
+                    [0, 'rgba(255,230,120,0.85)'],
+                    [1, 'rgba(255,215,0,0)']
+                ], 'rgba(255,225,100,0.4)');
+                ctx.beginPath(); ctx.arc(hx, hy, p.width * 0.95, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                drawRedBull(ctx, p.x, p.y + bobY, p.width, p.height, p.anim);
+            });
             if (rival0.visible && !rival0.overtaken) drawRival0(ctx, rival0.x, rival0.y, rival0.width, rival0.height, rival0.frame);
             if (rival.visible && !rival.overtaken) drawRival(ctx, rival.x, rival.y, rival.width, rival.height, rival.frame);
             if (rival2.visible && !rival2.overtaken) drawRival2(ctx, rival2.x, rival2.y, rival2.width, rival2.height, rival2.frame);
             if (rival3.visible && !rival3.overtaken) drawRival3(ctx, rival3.x, rival3.y, rival3.width, rival3.height, rival3.frame);
 
+            if (gameRunning) { drawPlayerFX(); drawJumpRings(); }
             const showPlayer = gameRunning && (invincibleFrames <= 0 || Math.floor(invincibleFrames / 5) % 2 === 0);
             if (showPlayer) {
+                // Squash & stretch: estira en el aire según la velocidad vertical
+                // y aplasta un instante al aterrizar (pivote en los pies).
+                let sx = 1, sy = 1;
+                if (!player.grounded) {
+                    const v = Math.min(1, Math.abs(player.vy) / 24);
+                    sy = 1 + v * 0.07; sx = 1 - v * 0.05;
+                } else if (player.landTimer > 0) {
+                    const k = player.landTimer / 8;
+                    sy = 1 - 0.10 * k; sx = 1 + 0.08 * k;
+                }
+                ctx.save();
+                if (sx !== 1 || sy !== 1) {
+                    const fx = player.x + player.width / 2, fy = player.y + player.height;
+                    ctx.translate(fx, fy); ctx.scale(sx, sy); ctx.translate(-fx, -fy);
+                }
                 if (selectedPlayer === 'rafa') drawRafa(ctx, player.x, player.y, player.width, player.height, player.frame);
                 else if (selectedPlayer === 'alba') drawAlba(ctx, player.x, player.y, player.width, player.height, player.frame);
                 else if (selectedPlayer === 'therian') drawTherian(ctx, player.x, player.y, player.width, player.height, player.frame);
                 else drawRunner(ctx, player.x, player.y, player.width, player.height, player.frame);
+                ctx.restore();
             }
 
             const drawMsg = (animTime, maxTime, color, shadow, text) => {
@@ -2597,25 +2811,40 @@
 
             drawFireworks(); drawJumpIndicator(); drawParticles(); drawFloatingTexts(); drawLevelUpBanner();
             ctx.restore(); // Restore after screen shake
+
+            // Flash rojo en los bordes al recibir daño
+            if (damageFlash > 0) {
+                if (!damageVignette) {
+                    damageVignette = ctx.createRadialGradient(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.30, GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_HEIGHT * 0.85);
+                    damageVignette.addColorStop(0, 'rgba(255,0,0,0)');
+                    damageVignette.addColorStop(1, 'rgba(200,0,0,0.9)');
+                }
+                ctx.save();
+                ctx.globalAlpha = (damageFlash / 14) * 0.45;
+                ctx.fillStyle = damageVignette;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                ctx.restore();
+                damageFlash--;
+            }
         };
 
-        const updateLivesDisplay = () => { const el = document.getElementById('livesDisplay'); if (el) el.textContent = '❤️'.repeat(lives); };
+        const updateLivesDisplay = () => { ui.lives.textContent = lives <= 8 ? '❤️'.repeat(lives) : '❤️ × ' + lives; };
 
         const startWithPlayer = (playerKey) => {
+            if (gameRunning) return; // evita doble arranque (touchend + click sintetizado en móvil)
             initAudio(); // Arrancar audio
             selectedPlayer = playerKey;
-            document.getElementById('title').textContent = PLAYER_TITLES[playerKey];
-            document.getElementById('characterSelect').style.display = 'none';
-            initState(); initBackground(); spawnObstacle(); spawnPowerUp(); update();
+            ui.title.textContent = PLAYER_TITLES[playerKey];
+            ui.characterSelect.style.display = 'none';
+            initState(); initBackground();
         };
 
         const handleInput = (e) => {
-            if (document.getElementById('instrScreen').classList.contains('visible')) return;
-            const sel = document.getElementById('characterSelect');
-            if (sel && sel.style.display !== 'none') return;
+            if (ui.instrScreen.classList.contains('visible')) return;
+            if (ui.characterSelect.style.display !== 'none') return;
             if (e.type === 'touchstart') { e.preventDefault(); touchJustPressed = true; keys['Touch'] = true; }
             else keys[e.code] = true;
-            if (!gameRunning && document.getElementById('gameOver').style.display === 'none' && document.getElementById('characterSelect').style.display === 'none' && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.type === 'touchstart')) reset();
+            if (!gameRunning && ui.gameOver.style.display === 'none' && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.type === 'touchstart')) reset();
         };
         const handleRelease = (e) => { if (e.type === 'touchend') keys['Touch'] = false; else keys[e.code] = false; };
 
@@ -2629,27 +2858,25 @@
         window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
         togglePerformanceMode(performanceMode);
-        draw();
+        requestAnimationFrame(draw);
 
         // ===== INSTRUCCIONES =====
-        var instrTimer = null;
+        let instrTimer = null;
         function mostrarInstrucciones() {
-            document.getElementById('characterSelect').style.display = 'none';
-            var s = document.getElementById('instrScreen');
-            s.classList.add('visible');
+            ui.characterSelect.style.display = 'none';
+            ui.instrScreen.classList.add('visible');
             clearTimeout(instrTimer);
             instrTimer = setTimeout(cerrarInstrucciones, 8000);
         }
         function cerrarInstrucciones() {
             clearTimeout(instrTimer);
-            document.getElementById('instrScreen').classList.remove('visible');
-            document.getElementById('characterSelect').style.display = 'flex';
+            ui.instrScreen.classList.remove('visible');
+            ui.characterSelect.style.display = 'flex';
         }
 
         // Listeners directos en instrScreen para que no los capture el handler global
-        var is = document.getElementById('instrScreen');
-        is.addEventListener('click', function(e) { e.stopPropagation(); cerrarInstrucciones(); });
-        is.addEventListener('touchend', function(e) { e.stopPropagation(); cerrarInstrucciones(); }, { passive: true });
+        ui.instrScreen.addEventListener('click', function(e) { e.stopPropagation(); cerrarInstrucciones(); });
+        ui.instrScreen.addEventListener('touchend', function(e) { e.stopPropagation(); cerrarInstrucciones(); }, { passive: true });
     
         initStars();
     </script>
