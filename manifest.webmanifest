@@ -1,0 +1,12 @@
+{
+  "name": "Cursa de Mossos 5K",
+  "short_name": "Cursa Mossos",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1630",
+  "theme_color": "#0f1630",
+  "icons": [
+    { "src": "assets/sprites/icons/camilo.webp", "sizes": "400x436", "type": "image/webp", "purpose": "any" }
+  ]
+}
